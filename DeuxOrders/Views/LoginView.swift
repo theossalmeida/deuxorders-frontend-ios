@@ -101,7 +101,7 @@ private extension LoginView {
             Text(message)
                 .font(.subheadline)
                 .fontWeight(.medium)
-                .foregroundColor(Color(red: 100/255, green: 0, blue: 0)) // Vermelho escuro para o texto
+                .foregroundColor(.white) // Vermelho escuro para o texto
                 .multilineTextAlignment(.leading)
             
             Spacer()
