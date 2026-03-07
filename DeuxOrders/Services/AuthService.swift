@@ -8,8 +8,8 @@
 import Foundation
 
 class AuthService {
-    // URL do seu tunnel Cloudflare
-    private let baseURL = "https://wells-sons-being-travelling.trycloudflare.com/api/v1/auth"
+    
+    private let baseURL = "https://api-orders.deuxcerie.com.br/api/v1/auth"
 
     func login(credentials: UserCredentials) async throws -> String {
         guard let url = URL(string: "\(baseURL)/login") else {

@@ -7,7 +7,7 @@
 
 import Foundation
 
-// Gestão de erros robusta para exibição em Alerts ou Texts
+// Error handling and alerts
 enum NetworkError: Error, LocalizedError {
     case invalidURL
     case noData
@@ -24,7 +24,7 @@ enum NetworkError: Error, LocalizedError {
     }
 }
 
-// DTOs que espelham o seu backend C#
+// DTOs
 struct UserCredentials: Codable {
     let email: String
     let password: String

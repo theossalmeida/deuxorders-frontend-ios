@@ -24,7 +24,6 @@ class LoginViewModel: ObservableObject {
             let credentials = UserCredentials(email: email, password: password)
             let token = try await authService.login(credentials: credentials)
             
-            // Salva o token para as próximas requisições
             UserDefaults.standard.set(token, forKey: "user_token")
             
             isAuthenticated = true

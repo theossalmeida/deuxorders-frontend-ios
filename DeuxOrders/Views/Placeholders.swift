@@ -7,17 +7,6 @@
 
 import SwiftUI
 
-struct OrdersView: View {
-    var body: some View {
-        NavigationStack {
-            List(0..<10) { i in
-                Text("Pedido #\(1000 + i)")
-            }
-            .navigationTitle("Pedidos")
-        }
-    }
-}
-
 struct ProductsView: View {
     var body: some View {
         NavigationStack {

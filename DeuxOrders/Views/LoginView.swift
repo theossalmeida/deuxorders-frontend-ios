@@ -3,40 +3,32 @@ import SwiftUI
 struct LoginView: View {
     @StateObject private var viewModel = LoginViewModel()
     
-    // Cor da Empresa
     private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
     
     var body: some View {
         NavigationStack {
             GeometryReader { geometry in
                 ZStack {
-                    // Fundo da Tela
                     brandColor
                         .ignoresSafeArea()
                     
                     VStack(spacing: 0) {
                         Spacer()
                         
-                        // 1. Header com Logo (95% da largura)
                         headerView(screenWidth: geometry.size.width)
                         
-                        // 2. Formulário de Login
                         VStack(spacing: 20) {
-                            
-                            // Campo de Email
                             TextField("Email", text: $viewModel.email)
                                 .textFieldStyle(.roundedBorder)
                                 .keyboardType(.emailAddress)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled(true)
-                                .controlSize(.large) // Deixa o campo mais robusto para toque
+                                .controlSize(.large)
                             
-                            // Campo de Senha
                             SecureField("Senha", text: $viewModel.password)
                                 .textFieldStyle(.roundedBorder)
                                 .controlSize(.large)
                             
-                            // MENSAGEM DE ERRO DESTACADA
                             if let error = viewModel.errorMessage {
                                 errorMessageView(message: error)
                                     .transition(.move(edge: .top).combined(with: .opacity))
@@ -48,14 +40,12 @@ struct LoginView: View {
                         Spacer()
                             .frame(height: 20)
                         
-                        // 3. Botão de Entrar
                         loginButton(screenWidth: geometry.size.width)
                         
                         Spacer()
                     }
                     .frame(width: geometry.size.width, height: geometry.size.height)
                 }
-                // Animação suave para o surgimento do erro
                 .animation(.spring(), value: viewModel.errorMessage)
             }
             .navigationDestination(isPresented: $viewModel.isAuthenticated) {
@@ -92,7 +82,6 @@ private extension LoginView {
         .padding(.bottom, 30)
     }
     
-    // COMPONENTE DE ERRO ROBUSTO
     func errorMessageView(message: String) -> some View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -101,13 +90,13 @@ private extension LoginView {
             Text(message)
                 .font(.subheadline)
                 .fontWeight(.medium)
-                .foregroundColor(.white) // Vermelho escuro para o texto
+                .foregroundColor(.white)
                 .multilineTextAlignment(.leading)
             
             Spacer()
         }
         .padding()
-        .background(Color.red.opacity(0.2)) // Fundo vermelho claro suave
+        .background(Color.red.opacity(0.2))
         .cornerRadius(10)
         .overlay(
             RoundedRectangle(cornerRadius: 10)

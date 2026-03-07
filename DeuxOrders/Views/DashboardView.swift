@@ -12,7 +12,6 @@ struct DashboardView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Resumo Financeiro
                     VStack(alignment: .leading, spacing: 10) {
                         Text("RESUMO DE HOJE")
                             .font(.caption)
@@ -26,7 +25,6 @@ struct DashboardView: View {
                     }
                     .padding(.horizontal)
 
-                    // Seção de Atividade Recente
                     VStack(alignment: .leading) {
                         Text("ATIVIDADE RECENTE")
                             .font(.caption)
@@ -52,7 +50,7 @@ struct DashboardView: View {
     }
 }
 
-// Componente de Card para o Dashboard
+// Dashboard card component
 struct SummaryCard: View {
     let title: String
     let value: String
