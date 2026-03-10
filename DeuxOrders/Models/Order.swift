@@ -5,6 +5,7 @@
 //  Created by Theo on 04/03/26.
 //
 
+
 import Foundation
 import SwiftUI
 
@@ -40,7 +41,7 @@ struct OrderResponse: Codable {
 struct Order: Codable, Identifiable {
     let id: String
     let deliveryDate: Date
-    let status: OrderStatus
+    var status: OrderStatus
     let clientId: String
     let clientName: String
     let totalPaid: Int
@@ -60,4 +61,5 @@ struct OrderItem: Codable {
     let baseUnitPrice: Int
     let totalPaid: Int
     let totalValue: Int
+    let observation: String?
 }

@@ -31,7 +31,6 @@ struct OrdersView: View {
                               order.id.localizedCaseInsensitiveContains(searchText)
             
             let statusMatch = selectedStatus == nil || order.status == selectedStatus
-            
             let dateMatch = order.deliveryDate >= startOfStartDate && order.deliveryDate <= endOfEndDate
             
             return searchMatch && statusMatch && dateMatch
@@ -47,25 +46,7 @@ struct OrdersView: View {
                     dateRangePickerView
                 }
                 
-                ZStack {
-                    Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
-                    
-                    if viewModel.isLoading && viewModel.orders.isEmpty {
-                        ProgressView("Buscando ordens...")
-                    } else if filteredOrders.isEmpty {
-                        ContentUnavailableView("Nenhum pedido", systemImage: "tray.fill")
-                    } else {
-                        ScrollView {
-                            LazyVStack(spacing: 12) {
-                                ForEach(filteredOrders) { order in
-                                    OrderCard(order: order)
-                                }
-                            }
-                            .padding()
-                        }
-                        .refreshable { await viewModel.loadOrders() }
-                    }
-                }
+                contentView
             }
             .navigationTitle("Pedidos")
             .sheet(isPresented: $showingNewOrderSheet) {
@@ -74,13 +55,65 @@ struct OrdersView: View {
             .task {
                 await viewModel.loadOrders()
             }
+            .alert("Erro", isPresented: Binding<Bool>(
+                get: { viewModel.errorMessage != nil },
+                set: { if !$0 { viewModel.errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                if let message = viewModel.errorMessage { Text(message) }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var contentView: some View {
+        if viewModel.isLoading && viewModel.orders.isEmpty {
+            Spacer()
+            ProgressView("Buscando ordens...")
+            Spacer()
+        } else if filteredOrders.isEmpty {
+            ContentUnavailableView("Nenhum pedido", systemImage: "tray.fill")
+        } else {
+            List {
+                ForEach(filteredOrders) { order in
+                    ZStack {
+                        OrderCard(order: order)
+                        NavigationLink(destination: EditOrderView(viewModel: viewModel, order: order)) {
+                            EmptyView()
+                        }
+                        .opacity(0)
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                    .listRowBackground(Color.clear)
+                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        Button {
+                            Task { await viewModel.updateOrderStatus(order: order, action: .complete) }
+                        } label: {
+                            Label("Concluir", systemImage: "checkmark.circle.fill")
+                        }
+                        .tint(.green)
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button {
+                            Task { await viewModel.updateOrderStatus(order: order, action: .cancel) }
+                        } label: {
+                            Label("Cancelar", systemImage: "xmark.circle.fill")
+                        }
+                        .tint(.red)
+                    }
+                }
+            }
+            .listStyle(.plain)
+            .background(Color(uiColor: .systemGroupedBackground))
+            .scrollContentBackground(.hidden)
+            .refreshable { await viewModel.loadOrders() }
         }
     }
 }
 
-// MARK: - Subviews
 private extension OrdersView {
-    
     var topControlsBar: some View {
         HStack(spacing: 12) {
             HStack {
@@ -138,7 +171,6 @@ private extension OrdersView {
     }
 }
 
-// MARK: - OrderCard Component
 struct OrderCard: View {
     let order: Order
     
@@ -163,7 +195,6 @@ struct OrderCard: View {
             }
             
             HStack {
-                // Acessando as propriedades do Enum diretamente e corretamente
                 Text(order.status.localizedName)
                     .font(.caption2)
                     .fontWeight(.bold)

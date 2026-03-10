@@ -7,73 +7,72 @@
 
 import Foundation
 
+
 class OrderService {
     private let baseURL = "https://api-orders.deuxcerie.com.br/api/v1/"
     
-    // MARK: - Decodificador Customizado
-    private var customDecoder: JSONDecoder {
+    private static let isoFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+    
+    private static let fallbackFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+    
+    private let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
-        
         decoder.dateDecodingStrategy = .custom { decoder in
             let container = try decoder.singleValueContainer()
             let dateString = try container.decode(String.self)
             
-            let formatter = ISO8601DateFormatter()
-            
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = formatter.date(from: dateString) {
-                return date
-            }
-            
-            formatter.formatOptions = [.withInternetDateTime]
-            if let date = formatter.date(from: dateString) {
-                return date
-            }
-            
+            if let date = isoFormatter.date(from: dateString) { return date }
+            if let date = fallbackFormatter.date(from: dateString) { return date }
             return Date()
         }
-        
         return decoder
+    }()
+    
+    private var token: String? {
+        UserDefaults.standard.string(forKey: "user_token")
     }
 
-    // MARK: - Pedidos (Orders)
-    
     func fetchOrders() async throws -> [Order] {
         let url = URL(string: baseURL + "orders/all?size=100")!
-        guard let token = UserDefaults.standard.string(forKey: "user_token") else { throw NetworkError.unauthorized }
-        
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        let (data, _) = try await URLSession.shared.data(for: request)
-        
-        let decodedResponse = try customDecoder.decode(OrderResponse.self, from: data)
-        
-        return decodedResponse.items.sorted { $0.deliveryDate > $1.deliveryDate }
+        let response = try await fetchData(url: url, responseType: OrderResponse.self)
+        return response.items.sorted { $0.deliveryDate > $1.deliveryDate }
     }
     
     func createOrder(input: OrderInput) async throws {
-        let url = URL(string: baseURL + "orders/new")!
-        
-        guard let token = UserDefaults.standard.string(forKey: "user_token") else { throw NetworkError.unauthorized }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        let encoder = JSONEncoder()
-        request.httpBody = try encoder.encode(input)
-        
-        let (_, response) = try await URLSession.shared.data(for: request)
-        
-        if let httpResponse = response as? HTTPURLResponse {
-            if !(200...299).contains(httpResponse.statusCode) {
-                throw NetworkError.serverError("Falha na API: \(httpResponse.statusCode)")
-            }
-        }
+        try await performRequestWithBody(endpoint: "orders/new", method: "POST", input: input)
+    }
+    
+    func updateOrder(id: String, input: OrderInput) async throws {
+        try await performRequestWithBody(endpoint: "orders/\(id)", method: "PUT", input: input)
     }
 
+    func completeOrder(id: String) async throws {
+        try await performPatch(endpoint: "orders/\(id)/complete")
+    }
+    
+    func cancelOrder(id: String) async throws {
+        try await performPatch(endpoint: "orders/\(id)/cancel")
+    }
+    
+    func deleteOrder(id: String) async throws {
+        guard let url = URL(string: baseURL + "orders/\(id)") else { throw NetworkError.invalidURL }
+        guard let token = token else { throw NetworkError.unauthorized }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let (_, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response)
+    }
     
     func fetchClients() async throws -> [Client] {
         let url = URL(string: baseURL + "clients/all")!
@@ -84,24 +83,52 @@ class OrderService {
         let url = URL(string: baseURL + "products/all")!
         return try await fetchData(url: url, responseType: [ProductResponse].self)
     }
-
+    
+    private func performRequestWithBody<T: Codable>(endpoint: String, method: String, input: T) async throws {
+        guard let url = URL(string: baseURL + endpoint) else { throw NetworkError.invalidURL }
+        guard let token = token else { throw NetworkError.unauthorized }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONEncoder().encode(input)
+        
+        let (_, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response)
+    }
+    
+    private func performPatch(endpoint: String) async throws {
+        guard let url = URL(string: baseURL + endpoint) else { throw NetworkError.invalidURL }
+        guard let token = token else { throw NetworkError.unauthorized }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let (_, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response)
+    }
     
     private func fetchData<T: Codable>(url: URL, responseType: T.Type) async throws -> T {
-        guard let token = UserDefaults.standard.string(forKey: "user_token") else { throw NetworkError.unauthorized }
+        guard let token = token else { throw NetworkError.unauthorized }
         
         var request = URLRequest(url: url)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         let (data, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response)
         
-        if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
-            throw NetworkError.serverError("Erro na requisição")
+        return try decoder.decode(T.self, from: data)
+    }
+    
+    private func validate(response: URLResponse) throws {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.serverError("Resposta inválida do servidor")
         }
-        
-        do {
-            return try customDecoder.decode(T.self, from: data)
-        } catch {
-            throw error
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw NetworkError.serverError("Falha na API com status: \(httpResponse.statusCode)")
         }
     }
 }

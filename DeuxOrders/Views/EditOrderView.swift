@@ -1,36 +1,23 @@
 //
-//  NewOrderView.swift
+//  EditOrderView.swift
 //  DeuxOrders
 //
-//  Created by Theo on 05/03/26.
+//  Created by Theo on 09/03/26.
 //
-
 
 import SwiftUI
 
-enum Formatters {
-    static let currency: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.locale = Locale(identifier: "pt_BR")
-        return formatter
-    }()
-    
-    static let iso8601: ISO8601DateFormatter = {
-        return ISO8601DateFormatter()
-    }()
-}
-
-struct NewOrderView: View {
+struct EditOrderView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var viewModel: OrdersViewModel
-    @FocusState private var isInputActive: Bool
+    let order: Order
     
-    private let orderService = OrderService()
+    @FocusState private var isInputActive: Bool
     private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 
     @State private var allClients: [Client] = []
     @State private var allProducts: [ProductResponse] = []
+    
     @State private var selectedClientId: String = ""
     @State private var deliveryDate = Date()
     @State private var items: [OrderItemInput] = []
@@ -39,6 +26,27 @@ struct NewOrderView: View {
     @State private var quantity: String = "1"
     @State private var itemTotalPaid: String = ""
     @State private var itemObservation: String = ""
+    
+    @State private var isDeleting = false
+    @State private var showDeleteConfirmation = false
+
+    init(viewModel: OrdersViewModel, order: Order) {
+        self.viewModel = viewModel
+        self.order = order
+        
+        _selectedClientId = State(initialValue: order.clientId)
+        _deliveryDate = State(initialValue: order.deliveryDate)
+        
+        let mappedItems = order.items.map {
+            OrderItemInput(
+                productid: $0.productId,
+                quantity: $0.quantity,
+                unitprice: $0.paidUnitPrice,
+                observation: $0.observation
+            )
+        }
+        _items = State(initialValue: mappedItems)
+    }
 
     private var totalOrderValue: Double {
         let totalCents = items.reduce(0) { $0 + ($1.unitprice * $1.quantity) }
@@ -46,35 +54,39 @@ struct NewOrderView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                basicInfoSection
-                itemsSection
-                totalSection
+        Form {
+            basicInfoSection
+            itemsSection
+            totalSection
+            deleteSection
+        }
+        .navigationTitle("Editar Pedido")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("OK") { isInputActive = false }
             }
-            .navigationTitle("Novo Pedido")
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("OK") { isInputActive = false }
-                }
-                
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Salvar") { Task { await handleSave() } }
-                        .disabled(items.isEmpty || selectedClientId.isEmpty)
-                }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Atualizar") { Task { await handleUpdate() } }
+                    .disabled(items.isEmpty || selectedClientId.isEmpty)
             }
-            .task {
-                await loadData()
+        }
+        .task {
+            await loadData()
+        }
+        .alert("Excluir Pedido", isPresented: $showDeleteConfirmation) {
+            Button("Cancelar", role: .cancel) { }
+            Button("Excluir", role: .destructive) {
+                Task { await handleDelete() }
             }
+        } message: {
+            Text("Tem certeza que deseja apagar permanentemente este pedido?")
         }
     }
 }
 
-extension NewOrderView {
+extension EditOrderView {
     
     private var basicInfoSection: some View {
         Section("Informações Básicas") {
@@ -150,43 +162,29 @@ extension NewOrderView {
             }
         }
     }
-}
-
-struct OrderItemRow: View {
-    let item: OrderItemInput
-    let productName: String
     
-    var itemTotal: Double {
-        let totalCents = item.unitprice * item.quantity
-        return Double(totalCents) / 100.0
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(productName).bold()
-                    Text("\(item.quantity)x \(Formatters.currency.string(from: NSNumber(value: Double(item.unitprice) / 100.0)) ?? "R$ 0,00")")
-                        .font(.caption).foregroundColor(.secondary)
+    private var deleteSection: some View {
+        Section {
+            Button(role: .destructive) {
+                showDeleteConfirmation = true
+            } label: {
+                HStack {
+                    Spacer()
+                    if isDeleting {
+                        ProgressView()
+                    } else {
+                        Text("Deletar Pedido")
+                            .fontWeight(.bold)
+                    }
+                    Spacer()
                 }
-                Spacer()
-                Text(Formatters.currency.string(from: NSNumber(value: itemTotal)) ?? "R$ 0,00")
-                    .fontWeight(.semibold)
             }
-            
-            if let obs = item.observation, !obs.isEmpty {
-                Text("Obs: \(obs)")
-                    .font(.caption)
-                    .italic()
-                    .foregroundColor(.secondary)
-                    .padding(.top, 2)
-            }
+            .disabled(isDeleting)
         }
-        .padding(.vertical, 4)
     }
 }
 
-extension NewOrderView {
+extension EditOrderView {
     
     private func updateTotalPaid(for productId: String) {
         if let prod = allProducts.first(where: { $0.id == productId }), let q = Int(quantity) {
@@ -200,13 +198,13 @@ extension NewOrderView {
     }
     
     private func getProductName(id: String) -> String {
-        allProducts.first(where: { $0.id == id })?.name ?? "Produto"
+        allProducts.first(where: { $0.id == id })?.name ?? "Produto Desconhecido"
     }
 
     func loadData() async {
         do {
-            let clients = try await orderService.fetchClients()
-            let products = try await orderService.fetchProducts()
+            let clients = try await viewModel.orderService.fetchClients()
+            let products = try await viewModel.orderService.fetchProducts()
             await MainActor.run {
                 self.allClients = clients
                 self.allProducts = products
@@ -244,7 +242,7 @@ extension NewOrderView {
         }
     }
 
-    func handleSave() async {
+    func handleUpdate() async {
         let finalInput = OrderInput(
             clientid: selectedClientId,
             deliverydate: Formatters.iso8601.string(from: deliveryDate),
@@ -252,11 +250,22 @@ extension NewOrderView {
         )
         
         do {
-            try await orderService.createOrder(input: finalInput)
+            try await viewModel.orderService.updateOrder(id: order.id, input: finalInput)
             await viewModel.loadOrders()
             await MainActor.run { dismiss() }
         } catch {
-            print("❌ Erro: \(error)")
+            print("❌ Erro na atualização: \(error)")
+        }
+    }
+    
+    func handleDelete() async {
+        isDeleting = true
+        do {
+            try await viewModel.deleteOrder(id: order.id)
+            await MainActor.run { dismiss() }
+        } catch {
+            print("❌ Erro ao deletar: \(error)")
+            isDeleting = false
         }
     }
 }
