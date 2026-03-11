@@ -20,7 +20,11 @@ struct EditOrderView: View {
     
     @State private var selectedClientId: String = ""
     @State private var deliveryDate = Date()
-    @State private var items: [OrderItemInput] = []
+    
+    @State private var existingItemsQuantities: [String: Int] = [:]
+    @State private var itemsToCancel: Set<String> = []
+    
+    @State private var newItems: [OrderItemInput] = []
     
     @State private var selectedProductId: String = ""
     @State private var quantity: String = "1"
@@ -29,6 +33,7 @@ struct EditOrderView: View {
     
     @State private var isDeleting = false
     @State private var showDeleteConfirmation = false
+    @State private var isUpdating = false
 
     init(viewModel: OrdersViewModel, order: Order) {
         self.viewModel = viewModel
@@ -37,26 +42,32 @@ struct EditOrderView: View {
         _selectedClientId = State(initialValue: order.clientId)
         _deliveryDate = State(initialValue: order.deliveryDate)
         
-        let mappedItems = order.items.map {
-            OrderItemInput(
-                productid: $0.productId,
-                quantity: $0.quantity,
-                unitprice: $0.paidUnitPrice,
-                observation: $0.observation
-            )
+        var initialQuantities: [String: Int] = [:]
+        for item in order.items {
+            initialQuantities[item.productId] = item.quantity
         }
-        _items = State(initialValue: mappedItems)
+        _existingItemsQuantities = State(initialValue: initialQuantities)
     }
 
     private var totalOrderValue: Double {
-        let totalCents = items.reduce(0) { $0 + ($1.unitprice * $1.quantity) }
-        return Double(totalCents) / 100.0
+        let existingTotalCents = order.items.reduce(0) { total, item in
+            if itemsToCancel.contains(item.productId) { return total }
+            let currentQtd = existingItemsQuantities[item.productId] ?? item.quantity
+            return total + (item.paidUnitPrice * currentQtd)
+        }
+        let newTotalCents = newItems.reduce(0) { $0 + ($1.unitprice * $1.quantity) }
+        return Double(existingTotalCents + newTotalCents) / 100.0
+    }
+
+    private var visibleExistingItems: [OrderItem] {
+        order.items.filter { !itemsToCancel.contains($0.productId) }
     }
 
     var body: some View {
         Form {
             basicInfoSection
-            itemsSection
+            existingItemsSection
+            newItemsSection
             totalSection
             deleteSection
         }
@@ -68,8 +79,12 @@ struct EditOrderView: View {
                 Button("OK") { isInputActive = false }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Atualizar") { Task { await handleUpdate() } }
-                    .disabled(items.isEmpty || selectedClientId.isEmpty)
+                if isUpdating {
+                    ProgressView()
+                } else {
+                    Button("Atualizar") { Task { await handleUpdate() } }
+                        .disabled(selectedClientId.isEmpty)
+                }
             }
         }
         .task {
@@ -83,6 +98,7 @@ struct EditOrderView: View {
         } message: {
             Text("Tem certeza que deseja apagar permanentemente este pedido?")
         }
+        .disabled(isUpdating || isDeleting)
     }
 }
 
@@ -100,21 +116,57 @@ extension EditOrderView {
         }
     }
     
-    private var itemsSection: some View {
-        Section("Itens do Pedido") {
+    private var existingItemsSection: some View {
+        Section("Itens do Pedido (Existentes)") {
+            if order.items.isEmpty {
+                Text("Nenhum item existente.").foregroundColor(.secondary)
+            } else {
+                ForEach(visibleExistingItems, id: \.productId) { item in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(item.productName)
+                            .font(.headline)
+                        
+                        HStack {
+                            Text("Qtd:")
+                            Stepper(
+                                value: quantityBinding(for: item.productId, defaultQuantity: item.quantity),
+                                in: 1...999
+                            ) {
+                                Text("\(existingItemsQuantities[item.productId] ?? item.quantity)")
+                            }
+                            Spacer()
+                            Text(formattedTotal(for: item))
+                        }
+                        
+                        if let observation = item.observation, !observation.isEmpty {
+                            Text("Obs: \(observation)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .onDelete { indexSet in
+                    let items = visibleExistingItems
+                    for index in indexSet {
+                        itemsToCancel.insert(items[index].productId)
+                    }
+                }
+            }
+        }
+    }
+    
+    private var newItemsSection: some View {
+        Section("Adicionar Novos Itens") {
             VStack(spacing: 12) {
                 Picker("Produto", selection: $selectedProductId) {
                     Text("Selecione o produto").tag(String(""))
                     ForEach(allProducts) { prod in
-                        if prod.status {
-                            Text(prod.name).tag(prod.id)
-                        }
+                        if prod.status { Text(prod.name).tag(prod.id) }
                     }
                 }
                 .pickerStyle(.menu)
-                .onChange(of: selectedProductId) { _, newValue in
-                    updateTotalPaid(for: newValue)
-                }
+                .onChange(of: selectedProductId) { _, newValue in updateTotalPaid(for: newValue) }
 
                 HStack {
                     TextField("Qtd", text: $quantity)
@@ -144,10 +196,10 @@ extension EditOrderView {
             }
             .padding(.vertical, 8)
 
-            ForEach(items) { item in
+            ForEach(newItems) { item in
                 OrderItemRow(item: item, productName: getProductName(id: item.productid))
             }
-            .onDelete(perform: { items.remove(atOffsets: $0) })
+            .onDelete(perform: { newItems.remove(atOffsets: $0) })
         }
     }
     
@@ -170,12 +222,7 @@ extension EditOrderView {
             } label: {
                 HStack {
                     Spacer()
-                    if isDeleting {
-                        ProgressView()
-                    } else {
-                        Text("Deletar Pedido")
-                            .fontWeight(.bold)
-                    }
+                    if isDeleting { ProgressView() } else { Text("Deletar Pedido").fontWeight(.bold) }
                     Spacer()
                 }
             }
@@ -186,6 +233,19 @@ extension EditOrderView {
 
 extension EditOrderView {
     
+    private func quantityBinding(for productId: String, defaultQuantity: Int) -> Binding<Int> {
+        Binding(
+            get: { existingItemsQuantities[productId] ?? defaultQuantity },
+            set: { existingItemsQuantities[productId] = $0 }
+        )
+    }
+    
+    private func formattedTotal(for item: OrderItem) -> String {
+        let currentQtd = existingItemsQuantities[item.productId] ?? item.quantity
+        let totalValue = Double(currentQtd * item.paidUnitPrice) / 100.0
+        return Formatters.currency.string(from: NSNumber(value: totalValue)) ?? "R$ 0,00"
+    }
+
     private func updateTotalPaid(for productId: String) {
         if let prod = allProducts.first(where: { $0.id == productId }), let q = Int(quantity) {
             let total = (Double(prod.price) / 100.0) * Double(q)
@@ -203,8 +263,11 @@ extension EditOrderView {
 
     func loadData() async {
         do {
-            let clients = try await viewModel.orderService.fetchClients()
-            let products = try await viewModel.orderService.fetchProducts()
+            async let fetchClients = viewModel.orderService.fetchClients()
+            async let fetchProducts = viewModel.orderService.fetchProducts()
+            
+            let (clients, products) = try await (fetchClients, fetchProducts)
+            
             await MainActor.run {
                 self.allClients = clients
                 self.allProducts = products
@@ -232,7 +295,7 @@ extension EditOrderView {
                 observation: itemObservation.isEmpty ? nil : itemObservation
             )
             
-            items.append(newItem)
+            newItems.append(newItem)
             
             selectedProductId = ""
             quantity = "1"
@@ -243,18 +306,42 @@ extension EditOrderView {
     }
 
     func handleUpdate() async {
-        let finalInput = OrderInput(
-            clientid: selectedClientId,
-            deliverydate: Formatters.iso8601.string(from: deliveryDate),
-            items: items
-        )
-        
+        isUpdating = true
         do {
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                for productId in itemsToCancel {
+                    group.addTask {
+                        try await viewModel.orderService.cancelOrderItem(orderId: order.id, productId: productId)
+                    }
+                }
+                
+                for item in order.items {
+                    if !itemsToCancel.contains(item.productId),
+                       let newQtd = existingItemsQuantities[item.productId],
+                       newQtd != item.quantity {
+                        
+                        let increment = newQtd - item.quantity
+                        group.addTask {
+                            try await viewModel.orderService.updateOrderItemQuantity(orderId: order.id, productId: item.productId, increment: increment)
+                        }
+                    }
+                }
+                
+                try await group.waitForAll()
+            }
+            
+            let finalInput = OrderInput(
+                clientid: selectedClientId,
+                deliverydate: Formatters.iso8601.string(from: deliveryDate),
+                items: newItems
+            )
+            
             try await viewModel.orderService.updateOrder(id: order.id, input: finalInput)
             await viewModel.loadOrders()
             await MainActor.run { dismiss() }
         } catch {
-            print("❌ Erro na atualização: \(error)")
+            print("Erro na atualização: \(error)")
+            isUpdating = false
         }
     }
     
@@ -264,7 +351,7 @@ extension EditOrderView {
             try await viewModel.deleteOrder(id: order.id)
             await MainActor.run { dismiss() }
         } catch {
-            print("❌ Erro ao deletar: \(error)")
+            print("Erro ao deletar: \(error)")
             isDeleting = false
         }
     }

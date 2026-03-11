@@ -5,8 +5,12 @@
 //  Created by Theo on 04/03/26.
 //
 
+
 import Foundation
 
+struct QuantityUpdateInput: Codable {
+    let increment: Int
+}
 
 class OrderService {
     private let baseURL = "https://api-orders.deuxcerie.com.br/api/v1/"
@@ -62,6 +66,15 @@ class OrderService {
         try await performPatch(endpoint: "orders/\(id)/cancel")
     }
     
+    func cancelOrderItem(orderId: String, productId: String) async throws {
+        try await performPatch(endpoint: "order/\(orderId)/items/\(productId)/cancel")
+    }
+
+    func updateOrderItemQuantity(orderId: String, productId: String, increment: Int) async throws {
+        let input = QuantityUpdateInput(increment: increment)
+        try await performRequestWithBody(endpoint: "order/\(orderId)/items/\(productId)/quantity", method: "PATCH", input: input)
+    }
+    
     func deleteOrder(id: String) async throws {
         guard let url = URL(string: baseURL + "orders/\(id)") else { throw NetworkError.invalidURL }
         guard let token = token else { throw NetworkError.unauthorized }
@@ -75,12 +88,12 @@ class OrderService {
     }
     
     func fetchClients() async throws -> [Client] {
-        let url = URL(string: baseURL + "clients/all")!
+        let url = URL(string: baseURL + "clients/dropdown?status=true")!
         return try await fetchData(url: url, responseType: [Client].self)
     }
 
     func fetchProducts() async throws -> [ProductResponse] {
-        let url = URL(string: baseURL + "products/all")!
+        let url = URL(string: baseURL + "products/dropdown?status=true")!
         return try await fetchData(url: url, responseType: [ProductResponse].self)
     }
     
