@@ -76,8 +76,8 @@ struct OrdersView: View {
             ContentUnavailableView("Nenhum pedido", systemImage: "tray.fill")
         } else {
             List {
-                ForEach(filteredOrders) { order in
-                    ZStack {
+                ForEach(filteredOrders.sorted { $0.deliveryDate < $1.deliveryDate }) { order in
+                ZStack {
                         OrderCard(order: order)
                         NavigationLink(destination: EditOrderView(viewModel: viewModel, order: order)) {
                             EmptyView()
@@ -182,7 +182,7 @@ struct OrderCard: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Text("Pedido #\(order.id.prefix(6))")
+                Text("Pedido #\(order.id.prefix(8)) - \(order.clientName)")
                     .font(.subheadline)
                     .fontWeight(.bold)
                     .foregroundColor(.primary)

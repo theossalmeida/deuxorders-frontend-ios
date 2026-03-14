@@ -11,7 +11,7 @@ class ClientService {
     private let baseURL = "https://api-orders.deuxcerie.com.br/api/v1/"
     
     private var token: String? {
-        UserDefaults.standard.string(forKey: "user_token")
+        KeychainService.load(forKey: "user_token")
     }
     
     func fetchClients() async throws -> [Client] {
@@ -41,7 +41,15 @@ class ClientService {
     func deactivateClient(id: String) async throws {
         var request = try makeRequest(endpoint: "clients/\(id)/inactive", method: "PATCH")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response)
+    }
+
+    func activateClient(id: String) async throws {
+        var request = try makeRequest(endpoint: "clients/\(id)/active", method: "PATCH")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
         let (_, response) = try await URLSession.shared.data(for: request)
         try validate(response: response)
     }
@@ -61,10 +69,15 @@ class ClientService {
     
     private func validate(response: URLResponse) throws {
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw NetworkError.serverError("Invalid server response")
+            throw NetworkError.serverError("Resposta inválida do servidor")
+        }
+        if httpResponse.statusCode == 401 {
+            KeychainService.delete(forKey: "user_token")
+            NotificationCenter.default.post(name: .sessionExpired, object: nil)
+            throw NetworkError.unauthorized
         }
         guard (200...299).contains(httpResponse.statusCode) else {
-            throw NetworkError.serverError("API failure with status: \(httpResponse.statusCode)")
+            throw NetworkError.serverError("Falha na API com status: \(httpResponse.statusCode)")
         }
     }
 }

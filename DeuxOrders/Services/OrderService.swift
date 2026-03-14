@@ -41,7 +41,7 @@ class OrderService {
     }()
     
     private var token: String? {
-        UserDefaults.standard.string(forKey: "user_token")
+        KeychainService.load(forKey: "user_token")
     }
 
     func fetchOrders() async throws -> [Order] {
@@ -54,7 +54,7 @@ class OrderService {
         try await performRequestWithBody(endpoint: "orders/new", method: "POST", input: input)
     }
     
-    func updateOrder(id: String, input: OrderInput) async throws {
+    func updateOrder(id: String, input: UpdateOrderRequest) async throws {
         try await performRequestWithBody(endpoint: "orders/\(id)", method: "PUT", input: input)
     }
 
@@ -67,12 +67,12 @@ class OrderService {
     }
     
     func cancelOrderItem(orderId: String, productId: String) async throws {
-        try await performPatch(endpoint: "order/\(orderId)/items/\(productId)/cancel")
+        try await performPatch(endpoint: "orders/\(orderId)/items/\(productId)/cancel")
     }
 
     func updateOrderItemQuantity(orderId: String, productId: String, increment: Int) async throws {
         let input = QuantityUpdateInput(increment: increment)
-        try await performRequestWithBody(endpoint: "order/\(orderId)/items/\(productId)/quantity", method: "PATCH", input: input)
+        try await performRequestWithBody(endpoint: "orders/\(orderId)/items/\(productId)/quantity", method: "PATCH", input: input)
     }
     
     func deleteOrder(id: String) async throws {
@@ -139,6 +139,11 @@ class OrderService {
     private func validate(response: URLResponse) throws {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NetworkError.serverError("Resposta inválida do servidor")
+        }
+        if httpResponse.statusCode == 401 {
+            KeychainService.delete(forKey: "user_token")
+            NotificationCenter.default.post(name: .sessionExpired, object: nil)
+            throw NetworkError.unauthorized
         }
         guard (200...299).contains(httpResponse.statusCode) else {
             throw NetworkError.serverError("Falha na API com status: \(httpResponse.statusCode)")

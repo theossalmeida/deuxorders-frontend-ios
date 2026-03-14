@@ -5,7 +5,6 @@
 //  Created by Theo on 05/03/26.
 //
 
-
 import SwiftUI
 
 enum Formatters {
@@ -15,7 +14,7 @@ enum Formatters {
         formatter.locale = Locale(identifier: "pt_BR")
         return formatter
     }()
-    
+
     static let iso8601: ISO8601DateFormatter = {
         return ISO8601DateFormatter()
     }()
@@ -25,16 +24,13 @@ struct NewOrderView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var viewModel: OrdersViewModel
     @FocusState private var isInputActive: Bool
-    
-    private let orderService = OrderService()
-    private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 
     @State private var allClients: [Client] = []
     @State private var allProducts: [ProductResponse] = []
     @State private var selectedClientId: String = ""
     @State private var deliveryDate = Date()
     @State private var items: [OrderItemInput] = []
-    
+
     @State private var selectedProductId: String = ""
     @State private var quantity: String = "1"
     @State private var itemTotalPaid: String = ""
@@ -48,9 +44,24 @@ struct NewOrderView: View {
     var body: some View {
         NavigationStack {
             Form {
-                basicInfoSection
-                itemsSection
-                totalSection
+                OrderBasicInfoSection(
+                    allClients: allClients,
+                    selectedClientId: $selectedClientId,
+                    deliveryDate: $deliveryDate
+                )
+                AddItemFormSection(
+                    allProducts: allProducts,
+                    sectionTitle: "Itens do Pedido",
+                    selectedProductId: $selectedProductId,
+                    quantity: $quantity,
+                    itemTotalPaid: $itemTotalPaid,
+                    itemObservation: $itemObservation,
+                    isInputActive: $isInputActive,
+                    items: items,
+                    onAdd: addItem,
+                    onDelete: { items.remove(atOffsets: $0) }
+                )
+                OrderTotalSection(totalOrderValue: totalOrderValue)
             }
             .navigationTitle("Novo Pedido")
             .toolbar {
@@ -58,7 +69,6 @@ struct NewOrderView: View {
                     Spacer()
                     Button("OK") { isInputActive = false }
                 }
-                
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancelar") { dismiss() }
                 }
@@ -67,87 +77,58 @@ struct NewOrderView: View {
                         .disabled(items.isEmpty || selectedClientId.isEmpty)
                 }
             }
-            .task {
-                await loadData()
-            }
+            .task { await loadData() }
         }
     }
-}
 
-extension NewOrderView {
-    
-    private var basicInfoSection: some View {
-        Section("Informações Básicas") {
-            Picker("Cliente", selection: $selectedClientId) {
-                Text("Selecione um cliente").tag(String(""))
-                ForEach(allClients) { client in
-                    Text(client.name).tag(client.id)
-                }
+    private func loadData() async {
+        do {
+            async let fetchClients = viewModel.orderService.fetchClients()
+            async let fetchProducts = viewModel.orderService.fetchProducts()
+            let (clients, products) = try await (fetchClients, fetchProducts)
+            await MainActor.run {
+                self.allClients = clients
+                self.allProducts = products
             }
-            DatePicker("Entrega", selection: $deliveryDate, displayedComponents: [.date, .hourAndMinute])
+        } catch {
+            print("Erro ao carregar dados da API: \(error)")
         }
     }
-    
-    private var itemsSection: some View {
-        Section("Itens do Pedido") {
-            VStack(spacing: 12) {
-                Picker("Produto", selection: $selectedProductId) {
-                    Text("Selecione o produto").tag(String(""))
-                    ForEach(allProducts) { prod in
-                        if prod.status {
-                            Text(prod.name).tag(prod.id)
-                        }
-                    }
-                }
-                .pickerStyle(.menu)
-                .onChange(of: selectedProductId) { _, newValue in
-                    updateTotalPaid(for: newValue)
-                }
 
-                HStack {
-                    TextField("Qtd", text: $quantity)
-                        .keyboardType(.numberPad)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($isInputActive)
-                        .onChange(of: quantity) { _, _ in recalculateTotalPaid() }
-                    
-                    TextField("Total Pago", text: $itemTotalPaid)
-                        .keyboardType(.decimalPad)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($isInputActive)
-                }
-                
-                HStack {
-                    TextField("Observação (opcional)", text: $itemObservation)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($isInputActive)
-                    
-                    Button(action: addItem) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title)
-                            .foregroundColor(brandColor)
-                    }
-                    .buttonStyle(.borderless)
-                }
-            }
-            .padding(.vertical, 8)
+    private func addItem() {
+        let cleanedTotal = itemTotalPaid.replacingOccurrences(of: ",", with: ".")
+        guard let q = Int(quantity),
+              let total = Double(cleanedTotal),
+              !selectedProductId.isEmpty,
+              q > 0 else { return }
 
-            ForEach(items) { item in
-                OrderItemRow(item: item, productName: getProductName(id: item.productid))
-            }
-            .onDelete(perform: { items.remove(atOffsets: $0) })
-        }
+        let unitPriceCents = Int(round((total / Double(q)) * 100))
+        items.append(OrderItemInput(
+            productid: selectedProductId,
+            quantity: q,
+            unitprice: unitPriceCents,
+            observation: itemObservation.isEmpty ? nil : itemObservation
+        ))
+
+        selectedProductId = ""
+        quantity = "1"
+        itemTotalPaid = ""
+        itemObservation = ""
+        isInputActive = false
     }
-    
-    private var totalSection: some View {
-        Section {
-            HStack {
-                Text("Total do Pedido")
-                Spacer()
-                Text(Formatters.currency.string(from: NSNumber(value: totalOrderValue)) ?? "R$ 0,00")
-                    .font(.headline)
-                    .foregroundColor(brandColor)
-            }
+
+    private func handleSave() async {
+        let finalInput = OrderInput(
+            clientid: selectedClientId,
+            deliverydate: Formatters.iso8601.string(from: deliveryDate),
+            items: items
+        )
+        do {
+            try await viewModel.orderService.createOrder(input: finalInput)
+            await viewModel.loadOrders()
+            await MainActor.run { dismiss() }
+        } catch {
+            print("❌ Erro: \(error)")
         }
     }
 }
@@ -155,12 +136,12 @@ extension NewOrderView {
 struct OrderItemRow: View {
     let item: OrderItemInput
     let productName: String
-    
+
     var itemTotal: Double {
         let totalCents = item.unitprice * item.quantity
         return Double(totalCents) / 100.0
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
@@ -173,7 +154,7 @@ struct OrderItemRow: View {
                 Text(Formatters.currency.string(from: NSNumber(value: itemTotal)) ?? "R$ 0,00")
                     .fontWeight(.semibold)
             }
-            
+
             if let obs = item.observation, !obs.isEmpty {
                 Text("Obs: \(obs)")
                     .font(.caption)
@@ -183,80 +164,5 @@ struct OrderItemRow: View {
             }
         }
         .padding(.vertical, 4)
-    }
-}
-
-extension NewOrderView {
-    
-    private func updateTotalPaid(for productId: String) {
-        if let prod = allProducts.first(where: { $0.id == productId }), let q = Int(quantity) {
-            let total = (Double(prod.price) / 100.0) * Double(q)
-            itemTotalPaid = String(format: "%.2f", total)
-        }
-    }
-    
-    private func recalculateTotalPaid() {
-        updateTotalPaid(for: selectedProductId)
-    }
-    
-    private func getProductName(id: String) -> String {
-        allProducts.first(where: { $0.id == id })?.name ?? "Produto"
-    }
-
-    func loadData() async {
-        do {
-            let clients = try await orderService.fetchClients()
-            let products = try await orderService.fetchProducts()
-            await MainActor.run {
-                self.allClients = clients
-                self.allProducts = products
-            }
-        } catch {
-            print("Erro ao carregar dados da API: \(error)")
-        }
-    }
-
-    func addItem() {
-        let cleanedTotal = itemTotalPaid.replacingOccurrences(of: ",", with: ".")
-        
-        if let q = Int(quantity),
-           let total = Double(cleanedTotal),
-           !selectedProductId.isEmpty,
-           q > 0 {
-            
-            let rawUnitPrice = total / Double(q)
-            let unitPriceCents = Int(round(rawUnitPrice * 100))
-            
-            let newItem = OrderItemInput(
-                productid: selectedProductId,
-                quantity: q,
-                unitprice: unitPriceCents,
-                observation: itemObservation.isEmpty ? nil : itemObservation
-            )
-            
-            items.append(newItem)
-            
-            selectedProductId = ""
-            quantity = "1"
-            itemTotalPaid = ""
-            itemObservation = ""
-            isInputActive = false
-        }
-    }
-
-    func handleSave() async {
-        let finalInput = OrderInput(
-            clientid: selectedClientId,
-            deliverydate: Formatters.iso8601.string(from: deliveryDate),
-            items: items
-        )
-        
-        do {
-            try await orderService.createOrder(input: finalInput)
-            await viewModel.loadOrders()
-            await MainActor.run { dismiss() }
-        } catch {
-            print("❌ Erro: \(error)")
-        }
     }
 }

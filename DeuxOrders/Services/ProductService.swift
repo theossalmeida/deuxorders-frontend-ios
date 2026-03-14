@@ -12,7 +12,7 @@ class ProductService {
     private let baseURL = "https://api-orders.deuxcerie.com.br/api/v1/"
     
     private var token: String? {
-        UserDefaults.standard.string(forKey: "user_token")
+        KeychainService.load(forKey: "user_token")
     }
     
     func fetchProducts() async throws -> [ProductResponse] {
@@ -61,10 +61,15 @@ class ProductService {
     
     private func validate(response: URLResponse) throws {
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw NetworkError.serverError("Invalid server response")
+            throw NetworkError.serverError("Resposta inválida do servidor")
+        }
+        if httpResponse.statusCode == 401 {
+            KeychainService.delete(forKey: "user_token")
+            NotificationCenter.default.post(name: .sessionExpired, object: nil)
+            throw NetworkError.unauthorized
         }
         guard (200...299).contains(httpResponse.statusCode) else {
-            throw NetworkError.serverError("API failure with status: \(httpResponse.statusCode)")
+            throw NetworkError.serverError("Falha na API com status: \(httpResponse.statusCode)")
         }
     }
 }

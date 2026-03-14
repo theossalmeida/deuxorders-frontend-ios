@@ -24,6 +24,10 @@ enum NetworkError: Error, LocalizedError {
     }
 }
 
+extension Notification.Name {
+    static let sessionExpired = Notification.Name("sessionExpired")
+}
+
 // DTOs
 struct UserCredentials: Codable {
     let email: String

@@ -62,4 +62,18 @@ struct OrderItem: Codable {
     let totalPaid: Int
     let totalValue: Int
     let observation: String?
+    let itemCanceled: Bool
+}
+
+struct UpdateOrderRequest: Codable {
+    let deliveryDate: String?
+    let status: Int?
+    let items: [UpdateOrderItemRequest]?
+}
+
+struct UpdateOrderItemRequest: Codable {
+    let productId: String
+    let quantity: Int?
+    let paidUnitPrice: Int?
+    let observation: String?
 }

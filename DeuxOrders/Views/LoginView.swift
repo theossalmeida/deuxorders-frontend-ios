@@ -53,6 +53,9 @@ struct LoginView: View {
                     .navigationBarBackButtonHidden(true)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .sessionExpired)) { _ in
+            viewModel.isAuthenticated = false
+        }
     }
 }
 

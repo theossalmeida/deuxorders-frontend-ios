@@ -32,6 +32,7 @@ class OrdersViewModel: ObservableObject {
         do {
             self.orders = try await orderService.fetchOrders()
             self.errorMessage = nil
+            await NotificationService.shared.scheduleNotifications(orders: self.orders)
         } catch let DecodingError.dataCorrupted(context) {
             print("🚨 ERRO DE PARSING: Dados corrompidos - \(context.debugDescription)")
             self.errorMessage = "Erro interno: Dados mal formatados."

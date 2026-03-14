@@ -9,12 +9,13 @@ import SwiftUI
 
 struct MainTabView: View {
     @StateObject private var ordersVM = OrdersViewModel(orderService: OrderService())
+    @StateObject private var dashboardVM = DashboardViewModel()
 
     var body: some View {
         TabView {
-            DashboardView()
+            DashboardView(viewModel: dashboardVM)
                 .tabItem {
-                    Label("Início", systemImage: "chart.bar.xaxis")
+                    Label("Dash", systemImage: "chart.bar.xaxis")
                 }
             
             OrdersView(viewModel: ordersVM)
