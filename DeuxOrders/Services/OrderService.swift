@@ -12,6 +12,20 @@ struct QuantityUpdateInput: Codable {
     let increment: Int
 }
 
+struct DeleteReferenceRequest: Codable {
+    let objectKey: String
+}
+
+struct PresignedUploadRequest: Codable {
+    let fileName: String
+    let contentType: String
+}
+
+struct PresignedUploadResponse: Codable {
+    let uploadUrl: String
+    let objectKey: String
+}
+
 class OrderService {
     private let baseURL = "https://api-orders.deuxcerie.com.br/api/v1/"
     
@@ -45,7 +59,7 @@ class OrderService {
     }
 
     func fetchOrders() async throws -> [Order] {
-        let url = URL(string: baseURL + "orders/all?size=100")!
+        let url = URL(string: baseURL + "orders/all?page=1&size=100")!
         let response = try await fetchData(url: url, responseType: OrderResponse.self)
         return response.items.sorted { $0.deliveryDate > $1.deliveryDate }
     }
@@ -87,6 +101,50 @@ class OrderService {
         try validate(response: response)
     }
     
+    func deleteReference(orderId: String, objectKey: String) async throws {
+        guard let url = URL(string: baseURL + "orders/\(orderId)/references") else { throw NetworkError.invalidURL }
+        guard let token = token else { throw NetworkError.unauthorized }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONEncoder().encode(DeleteReferenceRequest(objectKey: objectKey))
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response)
+    }
+
+    func getPresignedUrl(fileName: String, contentType: String) async throws -> PresignedUploadResponse {
+        let input = PresignedUploadRequest(fileName: fileName, contentType: contentType)
+        guard let url = URL(string: baseURL + "orders/references/presigned-url") else { throw NetworkError.invalidURL }
+        guard let token = token else { throw NetworkError.unauthorized }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONEncoder().encode(input)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response)
+        return try JSONDecoder().decode(PresignedUploadResponse.self, from: data)
+    }
+
+    func uploadImage(to presignedUrl: String, data: Data, contentType: String) async throws {
+        guard let url = URL(string: presignedUrl) else { throw NetworkError.invalidURL }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        request.httpBody = data
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw NetworkError.serverError("Falha ao enviar imagem para o armazenamento")
+        }
+    }
+
     func fetchClients() async throws -> [Client] {
         let url = URL(string: baseURL + "clients/dropdown?status=true")!
         return try await fetchData(url: url, responseType: [Client].self)
@@ -106,7 +164,7 @@ class OrderService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONEncoder().encode(input)
-        
+
         let (_, response) = try await URLSession.shared.data(for: request)
         try validate(response: response)
     }
@@ -132,7 +190,6 @@ class OrderService {
         
         let (data, response) = try await URLSession.shared.data(for: request)
         try validate(response: response)
-        
         return try decoder.decode(T.self, from: data)
     }
     

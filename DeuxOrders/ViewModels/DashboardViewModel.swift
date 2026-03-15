@@ -55,6 +55,23 @@ class DashboardViewModel: ObservableObject {
         }
     }
 
+    @Published var isExporting = false
+    @Published var exportError: String?
+    @Published var exportedFileURL: URL?
+
+    func exportOrders(format: String) async {
+        isExporting = true
+        defer { isExporting = false }
+        do {
+            let (data, filename) = try await service.exportOrders(from: startDate, to: endDate, status: nil, format: format)
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+            try data.write(to: url, options: .atomic)
+            exportedFileURL = url
+        } catch {
+            exportError = "Falha ao exportar. Tente novamente."
+        }
+    }
+
     func loadAll() async {
         isLoading = true
         defer { isLoading = false }

@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 private let maxObservationLength = 500
@@ -94,6 +95,142 @@ struct AddItemFormSection: View {
 
     private func productName(for id: String) -> String {
         allProducts.first(where: { $0.id == id })?.name ?? "Produto Desconhecido"
+    }
+}
+
+private enum FullscreenImageSource: Identifiable {
+    case url(String)
+    case local(Int, UIImage)
+
+    var id: String {
+        switch self {
+        case .url(let s): return s
+        case .local(let i, _): return "local-\(i)"
+        }
+    }
+}
+
+private struct FullscreenImageViewer: View {
+    let source: FullscreenImageSource
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+            Group {
+                switch source {
+                case .url(let urlString):
+                    AsyncImage(url: URL(string: urlString)) { image in
+                        image.resizable().scaledToFit()
+                    } placeholder: {
+                        ProgressView().tint(.white)
+                    }
+                case .local(_, let uiImage):
+                    Image(uiImage: uiImage).resizable().scaledToFit()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            Button { dismiss() } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title)
+                    .foregroundStyle(.white, Color.gray.opacity(0.8))
+                    .padding()
+            }
+        }
+    }
+}
+
+struct ReferenceImagesSection: View {
+    @Binding var selectedImages: [UIImage]
+    var existingUrls: [String] = []
+    var onDeleteExisting: ((String) -> Void)? = nil
+    private let maxImages = 3
+
+    @State private var pickerItems: [PhotosPickerItem] = []
+    @State private var fullscreenSource: FullscreenImageSource?
+
+    private var remainingSlots: Int {
+        maxImages - existingUrls.count - selectedImages.count
+    }
+
+    var body: some View {
+        Section("Imagens de Referência") {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(existingUrls, id: \.self) { url in
+                        ZStack(alignment: .topTrailing) {
+                            AsyncImage(url: URL(string: url)) { image in
+                                image.resizable().scaledToFill()
+                            } placeholder: {
+                                Color.secondary.opacity(0.2).overlay { ProgressView() }
+                            }
+                            .frame(width: 80, height: 80)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .onTapGesture { fullscreenSource = .url(url) }
+
+                            if onDeleteExisting != nil {
+                                Button {
+                                    onDeleteExisting?(url)
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(.white, brandColor)
+                                }
+                                .padding(4)
+                            }
+                        }
+                    }
+
+                    ForEach(Array(selectedImages.enumerated()), id: \.offset) { index, image in
+                        ZStack(alignment: .topTrailing) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 80, height: 80)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .onTapGesture { fullscreenSource = .local(index, image) }
+                            Button {
+                                selectedImages.remove(at: index)
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.white, brandColor)
+                            }
+                            .padding(4)
+                        }
+                    }
+
+                    if remainingSlots > 0 {
+                        PhotosPicker(selection: $pickerItems, maxSelectionCount: remainingSlots, matching: .images) {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.secondary.opacity(0.15))
+                                .frame(width: 80, height: 80)
+                                .overlay {
+                                    Image(systemName: "plus")
+                                        .font(.title2)
+                                        .foregroundColor(.secondary)
+                                }
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+        .onChange(of: pickerItems) { _, items in
+            Task { await loadImages(from: items) }
+        }
+        .fullScreenCover(item: $fullscreenSource) { source in
+            FullscreenImageViewer(source: source)
+        }
+    }
+
+    private func loadImages(from items: [PhotosPickerItem]) async {
+        for item in items {
+            if let data = try? await item.loadTransferable(type: Data.self),
+               let image = UIImage(data: data) {
+                await MainActor.run { selectedImages.append(image) }
+            }
+        }
+        await MainActor.run { pickerItems = [] }
     }
 }
 

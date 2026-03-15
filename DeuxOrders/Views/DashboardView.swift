@@ -3,6 +3,7 @@ import Charts
 
 struct DashboardView: View {
     @ObservedObject var viewModel: DashboardViewModel
+    @State private var showExportOptions = false
 
     private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 
@@ -39,8 +40,32 @@ struct DashboardView: View {
             }
             .navigationTitle("Dashboard")
             .task { await viewModel.loadAll() }
+            .sheet(isPresented: Binding(
+                get: { viewModel.exportedFileURL != nil },
+                set: { if !$0 { viewModel.exportedFileURL = nil } }
+            )) {
+                if let url = viewModel.exportedFileURL {
+                    ActivityView(items: [url])
+                }
+            }
+            .alert("Erro ao exportar", isPresented: Binding(
+                get: { viewModel.exportError != nil },
+                set: { if !$0 { viewModel.exportError = nil } }
+            )) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                if let msg = viewModel.exportError { Text(msg) }
+            }
         }
     }
+}
+
+private struct ActivityView: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - Date Filter
@@ -49,13 +74,34 @@ private extension DashboardView {
 
     var dateFilterSection: some View {
         VStack(spacing: 10) {
-            Picker("Período", selection: Binding(
-                get: { viewModel.selectedPreset },
-                set: { viewModel.selectPreset($0) }
-            )) {
-                ForEach(DateRangePreset.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            HStack(spacing: 12) {
+                Picker("Período", selection: Binding(
+                    get: { viewModel.selectedPreset },
+                    set: { viewModel.selectPreset($0) }
+                )) {
+                    ForEach(DateRangePreset.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+
+                Button {
+                    showExportOptions = true
+                } label: {
+                    if viewModel.isExporting {
+                        ProgressView()
+                            .frame(width: 20, height: 20)
+                    } else {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.title2)
+                            .foregroundColor(brandColor)
+                    }
+                }
+                .disabled(viewModel.isExporting)
+                .confirmationDialog("Exportar Relatório", isPresented: $showExportOptions) {
+                    Button("Exportar CSV") { Task { await viewModel.exportOrders(format: "csv") } }
+                    Button("Exportar PDF") { Task { await viewModel.exportOrders(format: "pdf") } }
+                    Button("Cancelar", role: .cancel) { }
+                }
             }
-            .pickerStyle(.segmented)
 
             if viewModel.selectedPreset == .custom {
                 VStack(spacing: 8) {

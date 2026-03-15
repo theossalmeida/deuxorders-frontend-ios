@@ -48,8 +48,13 @@ class OrdersViewModel: ObservableObject {
         } catch let error as NetworkError {
             print("🚨 ERRO DE REDE: \(error)")
             self.errorMessage = "Falha de conexão com o servidor."
+        } catch is CancellationError {
+            return
+        } catch let error as URLError {
+            print("🚨 ERRO DE URL: \(error)")
+            self.errorMessage = "Não foi possível conectar ao servidor. Verifique sua conexão."
         } catch {
-            print("🚨 ERRO DESCONHECIDO: \(error)")
+            print("🚨 ERRO DESCONHECIDO (\(type(of: error))): \(error)")
             self.errorMessage = "Ocorreu um erro inesperado."
         }
     }

@@ -35,6 +35,7 @@ struct NewOrderView: View {
     @State private var quantity: String = "1"
     @State private var itemTotalPaid: String = ""
     @State private var itemObservation: String = ""
+    @State private var referenceImages: [UIImage] = []
 
     private var totalOrderValue: Double {
         let totalCents = items.reduce(0) { $0 + ($1.unitprice * $1.quantity) }
@@ -61,6 +62,7 @@ struct NewOrderView: View {
                     onAdd: addItem,
                     onDelete: { items.remove(atOffsets: $0) }
                 )
+                ReferenceImagesSection(selectedImages: $referenceImages)
                 OrderTotalSection(totalOrderValue: totalOrderValue)
             }
             .navigationTitle("Novo Pedido")
@@ -118,18 +120,32 @@ struct NewOrderView: View {
     }
 
     private func handleSave() async {
-        let finalInput = OrderInput(
-            clientid: selectedClientId,
-            deliverydate: Formatters.iso8601.string(from: deliveryDate),
-            items: items
-        )
         do {
+            let objectKeys = try await uploadReferenceImages()
+            let finalInput = OrderInput(
+                clientid: selectedClientId,
+                deliverydate: Formatters.iso8601.string(from: deliveryDate),
+                items: items,
+                references: objectKeys.isEmpty ? nil : objectKeys
+            )
             try await viewModel.orderService.createOrder(input: finalInput)
             await viewModel.loadOrders()
             await MainActor.run { dismiss() }
         } catch {
             print("❌ Erro: \(error)")
         }
+    }
+
+    private func uploadReferenceImages() async throws -> [String] {
+        var objectKeys: [String] = []
+        for image in referenceImages {
+            guard let data = image.jpegData(compressionQuality: 0.8) else { continue }
+            let fileName = "\(UUID().uuidString).jpg"
+            let response = try await viewModel.orderService.getPresignedUrl(fileName: fileName, contentType: "image/jpeg")
+            try await viewModel.orderService.uploadImage(to: response.uploadUrl, data: data, contentType: "image/jpeg")
+            objectKeys.append(response.objectKey)
+        }
+        return objectKeys
     }
 }
 

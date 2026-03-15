@@ -35,6 +35,33 @@ class DashboardService {
         return try await fetchData(url: url, as: [TopClient].self)
     }
 
+    func exportOrders(from: Date, to: Date, status: OrderStatus?, format: String) async throws -> (Data, String) {
+        guard let token = token else { throw NetworkError.unauthorized }
+
+        var components = URLComponents(string: "\(baseURL)/export")!
+        let endOfDay = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: to) ?? to
+        var items: [URLQueryItem] = [
+            URLQueryItem(name: "startDate", value: isoFormatter.string(from: from)),
+            URLQueryItem(name: "endDate", value: isoFormatter.string(from: endOfDay)),
+            URLQueryItem(name: "format", value: format)
+        ]
+        if let status = status {
+            items.append(URLQueryItem(name: "status", value: status.rawValue))
+        }
+        components.queryItems = items
+
+        var request = URLRequest(url: components.url!)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response)
+
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyyMMdd"
+        let filename = "pedidos_\(dateFormatter.string(from: Date())).\(format)"
+        return (data, filename)
+    }
+
     private func buildURL(_ endpoint: String, start: Date, end: Date, extra: [String: String] = [:]) -> URL {
         var components = URLComponents(string: "\(baseURL)/\(endpoint)")!
         let endOfDay = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: end) ?? end

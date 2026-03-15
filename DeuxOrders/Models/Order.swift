@@ -47,6 +47,7 @@ struct Order: Codable, Identifiable {
     let totalPaid: Int
     let totalValue: Int
     let items: [OrderItem]
+    let references: [String]?
 
     var shortId: String {
         String(id.prefix(8)).uppercased()
@@ -69,6 +70,7 @@ struct UpdateOrderRequest: Codable {
     let deliveryDate: String?
     let status: Int?
     let items: [UpdateOrderItemRequest]?
+    let references: [String]?
 }
 
 struct UpdateOrderItemRequest: Codable {

@@ -30,6 +30,8 @@ struct EditOrderView: View {
     @State private var itemTotalPaid: String = ""
     @State private var itemObservation: String = ""
 
+    @State private var currentReferences: [String]
+    @State private var newReferenceImages: [UIImage] = []
     @State private var isDeleting = false
     @State private var showDeleteConfirmation = false
     @State private var isUpdating = false
@@ -55,6 +57,7 @@ struct EditOrderView: View {
             )
         }
         _editedItems = State(initialValue: initial)
+        _currentReferences = State(initialValue: order.references ?? [])
     }
 
     private var totalOrderValue: Double {
@@ -74,6 +77,11 @@ struct EditOrderView: View {
                 deliveryDate: $deliveryDate
             )
             existingItemsSection
+            ReferenceImagesSection(
+                selectedImages: $newReferenceImages,
+                existingUrls: currentReferences,
+                onDeleteExisting: { url in Task { await deleteReference(url: url) } }
+            )
             AddItemFormSection(
                 allProducts: allProducts,
                 sectionTitle: "Adicionar Novos Itens",
@@ -271,13 +279,14 @@ extension EditOrderView {
         }
         itemsPayload.append(contentsOf: newItemsPayload)
 
-        let payload = UpdateOrderRequest(
-            deliveryDate: deliveryDatePayload,
-            status: nil,
-            items: itemsPayload.isEmpty ? nil : itemsPayload
-        )
-
         do {
+            let newObjectKeys = try await uploadReferenceImages()
+            let payload = UpdateOrderRequest(
+                deliveryDate: deliveryDatePayload,
+                status: nil,
+                items: itemsPayload.isEmpty ? nil : itemsPayload,
+                references: newObjectKeys.isEmpty ? nil : newObjectKeys
+            )
             try await viewModel.orderService.updateOrder(id: order.id, input: payload)
             await viewModel.loadOrders()
             await MainActor.run { dismiss() }
@@ -296,6 +305,34 @@ extension EditOrderView {
             print("Erro ao deletar: \(error)")
             isDeleting = false
         }
+    }
+
+    private func deleteReference(url: String) async {
+        guard let key = objectKey(from: url) else { return }
+        do {
+            try await viewModel.orderService.deleteReference(orderId: order.id, objectKey: key)
+            currentReferences.removeAll { $0 == url }
+        } catch {
+            print("Erro ao deletar referência: \(error)")
+        }
+    }
+
+    private func objectKey(from urlString: String) -> String? {
+        guard let url = URL(string: urlString),
+              url.pathComponents.count > 2 else { return nil }
+        return url.pathComponents.dropFirst(2).joined(separator: "/")
+    }
+
+    private func uploadReferenceImages() async throws -> [String] {
+        var objectKeys: [String] = []
+        for image in newReferenceImages {
+            guard let data = image.jpegData(compressionQuality: 0.8) else { continue }
+            let fileName = "\(UUID().uuidString).jpg"
+            let response = try await viewModel.orderService.getPresignedUrl(fileName: fileName, contentType: "image/jpeg")
+            try await viewModel.orderService.uploadImage(to: response.uploadUrl, data: data, contentType: "image/jpeg")
+            objectKeys.append(response.objectKey)
+        }
+        return objectKeys
     }
 
     private func cancelItem(productId: String) async {

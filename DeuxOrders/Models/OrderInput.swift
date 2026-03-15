@@ -11,6 +11,7 @@ struct OrderInput: Codable {
     let clientid: String
     let deliverydate: String
     let items: [OrderItemInput]
+    let references: [String]?
 }
 
 struct OrderItemInput: Codable, Identifiable {
