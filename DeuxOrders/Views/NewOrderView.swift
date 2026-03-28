@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 enum Formatters {
     static let currency: NumberFormatter = {
@@ -20,25 +21,46 @@ enum Formatters {
     }()
 }
 
+@MainActor
+final class NewOrderState: ObservableObject {
+    @Published var selectedClientId: String = ""
+    @Published var deliveryDate: Date = Date()
+    @Published var deliveryAddress: String = "Retirada"
+    @Published var items: [OrderItemInput] = []
+    @Published var selectedProductId: String = ""
+    @Published var quantity: String = "1"
+    @Published var itemUnitPrice: String = ""
+    @Published var itemMassa: String = ""
+    @Published var itemSabor: String = ""
+    @Published var itemObservation: String = ""
+    @Published var referenceImages: [UIImage] = []
+
+    func reset() {
+        selectedClientId = ""
+        deliveryDate = Date()
+        deliveryAddress = "Retirada"
+        items = []
+        selectedProductId = ""
+        quantity = "1"
+        itemUnitPrice = ""
+        itemMassa = ""
+        itemSabor = ""
+        itemObservation = ""
+        referenceImages = []
+    }
+}
+
 struct NewOrderView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var viewModel: OrdersViewModel
+    @ObservedObject var state: NewOrderState
     @FocusState private var isInputActive: Bool
 
     @State private var allClients: [Client] = []
     @State private var allProducts: [ProductResponse] = []
-    @State private var selectedClientId: String = ""
-    @State private var deliveryDate = Date()
-    @State private var items: [OrderItemInput] = []
-
-    @State private var selectedProductId: String = ""
-    @State private var quantity: String = "1"
-    @State private var itemTotalPaid: String = ""
-    @State private var itemObservation: String = ""
-    @State private var referenceImages: [UIImage] = []
 
     private var totalOrderValue: Double {
-        let totalCents = items.reduce(0) { $0 + ($1.unitprice * $1.quantity) }
+        let totalCents = state.items.reduce(0) { $0 + ($1.unitprice * $1.quantity) }
         return Double(totalCents) / 100.0
     }
 
@@ -47,22 +69,25 @@ struct NewOrderView: View {
             Form {
                 OrderBasicInfoSection(
                     allClients: allClients,
-                    selectedClientId: $selectedClientId,
-                    deliveryDate: $deliveryDate
+                    selectedClientId: $state.selectedClientId,
+                    deliveryDate: $state.deliveryDate,
+                    deliveryAddress: $state.deliveryAddress
                 )
                 AddItemFormSection(
                     allProducts: allProducts,
                     sectionTitle: "Itens do Pedido",
-                    selectedProductId: $selectedProductId,
-                    quantity: $quantity,
-                    itemTotalPaid: $itemTotalPaid,
-                    itemObservation: $itemObservation,
+                    selectedProductId: $state.selectedProductId,
+                    quantity: $state.quantity,
+                    itemUnitPrice: $state.itemUnitPrice,
+                    itemMassa: $state.itemMassa,
+                    itemSabor: $state.itemSabor,
+                    itemObservation: $state.itemObservation,
                     isInputActive: $isInputActive,
-                    items: items,
+                    items: state.items,
                     onAdd: addItem,
-                    onDelete: { items.remove(atOffsets: $0) }
+                    onDelete: { state.items.remove(atOffsets: $0) }
                 )
-                ReferenceImagesSection(selectedImages: $referenceImages)
+                ReferenceImagesSection(selectedImages: $state.referenceImages)
                 OrderTotalSection(totalOrderValue: totalOrderValue)
             }
             .navigationTitle("Novo Pedido")
@@ -76,7 +101,7 @@ struct NewOrderView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salvar") { Task { await handleSave() } }
-                        .disabled(items.isEmpty || selectedClientId.isEmpty)
+                        .disabled(state.items.isEmpty || state.selectedClientId.isEmpty)
                 }
             }
             .task { await loadData() }
@@ -98,24 +123,33 @@ struct NewOrderView: View {
     }
 
     private func addItem() {
-        let cleanedTotal = itemTotalPaid.replacingOccurrences(of: ",", with: ".")
-        guard let q = Int(quantity),
-              let total = Double(cleanedTotal),
-              !selectedProductId.isEmpty,
-              q > 0 else { return }
+        let cleanedPrice = state.itemUnitPrice.replacingOccurrences(of: ",", with: ".")
+        guard let q = Int(state.quantity),
+              let unitPrice = Double(cleanedPrice),
+              !state.selectedProductId.isEmpty,
+              q > 0,
+              unitPrice > 0 else { return }
 
-        let unitPriceCents = Int(round((total / Double(q)) * 100))
-        items.append(OrderItemInput(
-            productid: selectedProductId,
+        let product = allProducts.first(where: { $0.id == state.selectedProductId })
+        let requiresMassaSabor = product?.category?.lowercased() == "bolo" || product?.name.lowercased() == "brigadeiro"
+        guard !requiresMassaSabor || (!state.itemMassa.isEmpty && !state.itemSabor.isEmpty) else { return }
+
+        let unitPriceCents = Int(round(unitPrice * 100))
+        state.items.append(OrderItemInput(
+            productid: state.selectedProductId,
             quantity: q,
             unitprice: unitPriceCents,
-            observation: itemObservation.isEmpty ? nil : itemObservation
+            observation: state.itemObservation.isEmpty ? nil : state.itemObservation,
+            massa: state.itemMassa.isEmpty ? nil : state.itemMassa,
+            sabor: state.itemSabor.isEmpty ? nil : state.itemSabor
         ))
 
-        selectedProductId = ""
-        quantity = "1"
-        itemTotalPaid = ""
-        itemObservation = ""
+        state.selectedProductId = ""
+        state.quantity = "1"
+        state.itemUnitPrice = ""
+        state.itemMassa = ""
+        state.itemSabor = ""
+        state.itemObservation = ""
         isInputActive = false
     }
 
@@ -123,14 +157,18 @@ struct NewOrderView: View {
         do {
             let objectKeys = try await uploadReferenceImages()
             let finalInput = OrderInput(
-                clientid: selectedClientId,
-                deliverydate: Formatters.iso8601.string(from: deliveryDate),
-                items: items,
+                clientid: state.selectedClientId,
+                deliverydate: Formatters.iso8601.string(from: state.deliveryDate),
+                deliveryAddress: state.deliveryAddress.isEmpty ? nil : state.deliveryAddress,
+                items: state.items,
                 references: objectKeys.isEmpty ? nil : objectKeys
             )
             try await viewModel.orderService.createOrder(input: finalInput)
             await viewModel.loadOrders()
-            await MainActor.run { dismiss() }
+            await MainActor.run {
+                state.reset()
+                dismiss()
+            }
         } catch {
             print("❌ Erro: \(error)")
         }
@@ -138,7 +176,7 @@ struct NewOrderView: View {
 
     private func uploadReferenceImages() async throws -> [String] {
         var objectKeys: [String] = []
-        for image in referenceImages {
+        for image in state.referenceImages {
             guard let data = image.jpegData(compressionQuality: 0.8) else { continue }
             let fileName = "\(UUID().uuidString).jpg"
             let response = try await viewModel.orderService.getPresignedUrl(fileName: fileName, contentType: "image/jpeg")
@@ -152,6 +190,7 @@ struct NewOrderView: View {
 struct OrderItemRow: View {
     let item: OrderItemInput
     let productName: String
+    let productSize: String?
 
     var itemTotal: Double {
         let totalCents = item.unitprice * item.quantity
@@ -161,8 +200,13 @@ struct OrderItemRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(productName).bold()
+                    if let size = productSize, !size.isEmpty {
+                        Text(size)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     Text("\(item.quantity)x \(Formatters.currency.string(from: NSNumber(value: Double(item.unitprice) / 100.0)) ?? "R$ 0,00")")
                         .font(.caption).foregroundColor(.secondary)
                 }
@@ -171,6 +215,16 @@ struct OrderItemRow: View {
                     .fontWeight(.semibold)
             }
 
+            if let massa = item.massa, !massa.isEmpty {
+                Text("Massa: \(massa)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            if let sabor = item.sabor, !sabor.isEmpty {
+                Text("Sabor: \(sabor)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
             if let obs = item.observation, !obs.isEmpty {
                 Text("Obs: \(obs)")
                     .font(.caption)

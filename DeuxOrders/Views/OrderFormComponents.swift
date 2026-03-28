@@ -8,6 +8,20 @@ struct OrderBasicInfoSection: View {
     let allClients: [Client]
     @Binding var selectedClientId: String
     @Binding var deliveryDate: Date
+    @Binding var deliveryAddress: String
+
+    private var isPickup: Bool {
+        deliveryAddress == "Retirada"
+    }
+
+    private var modeBinding: Binding<Bool> {
+        Binding(
+            get: { isPickup },
+            set: { newIsPickup in
+                deliveryAddress = newIsPickup ? "Retirada" : ""
+            }
+        )
+    }
 
     var body: some View {
         Section("Informações Básicas") {
@@ -18,6 +32,14 @@ struct OrderBasicInfoSection: View {
                 }
             }
             DatePicker("Entrega", selection: $deliveryDate, displayedComponents: [.date, .hourAndMinute])
+            Picker("Tipo", selection: modeBinding) {
+                Text("Retirada").tag(true)
+                Text("Entrega").tag(false)
+            }
+            .pickerStyle(.segmented)
+            if !isPickup {
+                TextField("Endereço de entrega", text: $deliveryAddress)
+            }
         }
     }
 }
@@ -27,34 +49,90 @@ struct AddItemFormSection: View {
     let sectionTitle: String
     @Binding var selectedProductId: String
     @Binding var quantity: String
-    @Binding var itemTotalPaid: String
+    @Binding var itemUnitPrice: String
+    @Binding var itemMassa: String
+    @Binding var itemSabor: String
     @Binding var itemObservation: String
     @FocusState.Binding var isInputActive: Bool
     let items: [OrderItemInput]
     let onAdd: () -> Void
     let onDelete: (IndexSet) -> Void
 
+    @State private var selectedProductName: String = ""
+    @State private var selectedSize: String = ""
+
+    private var uniqueProductNames: [String] {
+        var seen = Set<String>()
+        return allProducts
+            .filter { $0.status }
+            .compactMap { seen.insert($0.name).inserted ? $0.name : nil }
+            .sorted()
+    }
+
+    private var sizesForSelectedName: [String] {
+        var seen = Set<String>()
+        return allProducts
+            .filter { $0.status && $0.name == selectedProductName }
+            .compactMap { $0.size.flatMap { $0.isEmpty ? nil : $0 } }
+            .filter { seen.insert($0).inserted }
+    }
+
+    private var requiresMassaSabor: Bool {
+        guard !selectedProductId.isEmpty,
+              let product = allProducts.first(where: { $0.id == selectedProductId }) else { return false }
+        return product.category?.lowercased() == "bolo" || product.name.lowercased() == "brigadeiro"
+    }
+
+    private var canAddItem: Bool {
+        !selectedProductId.isEmpty &&
+        (Int(quantity) ?? 0) > 0 &&
+        (Double(itemUnitPrice.replacingOccurrences(of: ",", with: ".")) ?? 0) > 0 &&
+        (!requiresMassaSabor || (!itemMassa.isEmpty && !itemSabor.isEmpty))
+    }
+
     var body: some View {
         Section(sectionTitle) {
             VStack(spacing: 12) {
-                Picker("Produto", selection: $selectedProductId) {
+                Picker("Produto", selection: $selectedProductName) {
                     Text("Selecione o produto").tag(String(""))
-                    ForEach(allProducts) { prod in
-                        if prod.status { Text(prod.name).tag(prod.id) }
-                    }
+                    ForEach(uniqueProductNames, id: \.self) { Text($0).tag($0) }
                 }
                 .pickerStyle(.menu)
-                .onChange(of: selectedProductId) { _, newValue in updateTotalPaid(for: newValue) }
+                .onChange(of: selectedProductName) { _, name in
+                    selectedSize = ""
+                    resolveProductId(name: name, size: "")
+                }
+
+                if !sizesForSelectedName.isEmpty {
+                    Picker("Tamanho", selection: $selectedSize) {
+                        Text("Selecione o tamanho").tag(String(""))
+                        ForEach(sizesForSelectedName, id: \.self) { Text($0).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    .onChange(of: selectedSize) { _, size in
+                        resolveProductId(name: selectedProductName, size: size)
+                    }
+                }
 
                 HStack {
                     TextField("Qtd", text: $quantity)
                         .keyboardType(.numberPad)
                         .textFieldStyle(.roundedBorder)
                         .focused($isInputActive)
-                        .onChange(of: quantity) { _, _ in updateTotalPaid(for: selectedProductId) }
+                        .frame(maxWidth: 70)
+                        .onChange(of: quantity) { _, _ in autoFillUnitPrice(for: selectedProductId) }
 
-                    TextField("Total Pago", text: $itemTotalPaid)
+                    TextField("Preço unit. (R$)", text: $itemUnitPrice)
                         .keyboardType(.decimalPad)
+                        .textFieldStyle(.roundedBorder)
+                        .focused($isInputActive)
+                }
+
+                if requiresMassaSabor {
+                    TextField("Massa", text: $itemMassa)
+                        .textFieldStyle(.roundedBorder)
+                        .focused($isInputActive)
+                    TextField("Sabor", text: $itemSabor)
                         .textFieldStyle(.roundedBorder)
                         .focused($isInputActive)
                 }
@@ -75,26 +153,58 @@ struct AddItemFormSection: View {
                             .foregroundColor(brandColor)
                     }
                     .buttonStyle(.borderless)
+                    .disabled(!canAddItem)
                 }
             }
             .padding(.vertical, 8)
+            .onChange(of: selectedProductId) { _, newId in
+                if newId.isEmpty {
+                    selectedProductName = ""
+                    selectedSize = ""
+                    itemUnitPrice = ""
+                    itemMassa = ""
+                    itemSabor = ""
+                } else {
+                    autoFillUnitPrice(for: newId)
+                }
+            }
 
             ForEach(items) { item in
-                OrderItemRow(item: item, productName: productName(for: item.productid))
+                OrderItemRow(item: item, productName: productName(for: item.productid), productSize: productSize(for: item.productid))
             }
             .onDelete(perform: onDelete)
         }
     }
 
-    private func updateTotalPaid(for productId: String) {
-        guard let prod = allProducts.first(where: { $0.id == productId }),
-              let q = Int(quantity) else { return }
-        let total = (Double(prod.price) / 100.0) * Double(q)
-        itemTotalPaid = String(format: "%.2f", total)
+    private func resolveProductId(name: String, size: String) {
+        guard !name.isEmpty else {
+            selectedProductId = ""
+            return
+        }
+        let candidates = allProducts.filter { $0.status && $0.name == name }
+        if sizesForSelectedName.isEmpty {
+            selectedProductId = candidates.first?.id ?? ""
+        } else if !size.isEmpty {
+            selectedProductId = candidates.first(where: { $0.size == size })?.id ?? ""
+        } else {
+            selectedProductId = ""
+        }
+        autoFillUnitPrice(for: selectedProductId)
+    }
+
+    private func autoFillUnitPrice(for productId: String) {
+        guard !productId.isEmpty,
+              let prod = allProducts.first(where: { $0.id == productId }) else { return }
+        itemUnitPrice = String(format: "%.2f", prod.price / 100.0)
     }
 
     private func productName(for id: String) -> String {
         allProducts.first(where: { $0.id == id })?.name ?? "Produto Desconhecido"
+    }
+
+    private func productSize(for id: String) -> String? {
+        guard let size = allProducts.first(where: { $0.id == id })?.size, !size.isEmpty else { return nil }
+        return size
     }
 }
 

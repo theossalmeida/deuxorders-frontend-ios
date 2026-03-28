@@ -19,15 +19,19 @@ struct EditOrderView: View {
 
     @State private var selectedClientId: String
     @State private var deliveryDate: Date
+    @State private var deliveryAddress: String
 
     // Tracks what the user changed in each existing item. Only changed items enter the payload.
     @State private var editedItems: [String: EditedItem] = [:]
 
     @State private var newItems: [OrderItemInput] = []
 
+    @State private var selectedStatus: OrderStatus
     @State private var selectedProductId: String = ""
     @State private var quantity: String = "1"
-    @State private var itemTotalPaid: String = ""
+    @State private var itemUnitPrice: String = ""
+    @State private var itemMassa: String = ""
+    @State private var itemSabor: String = ""
     @State private var itemObservation: String = ""
 
     @State private var currentReferences: [String]
@@ -40,6 +44,8 @@ struct EditOrderView: View {
         var quantity: Int
         var paidUnitPrice: Int
         var observation: String?
+        var massa: String
+        var sabor: String
     }
 
     init(viewModel: OrdersViewModel, order: Order) {
@@ -47,13 +53,17 @@ struct EditOrderView: View {
         self.order = order
         _selectedClientId = State(initialValue: order.clientId)
         _deliveryDate = State(initialValue: order.deliveryDate)
+        _deliveryAddress = State(initialValue: order.deliveryAddress ?? "Retirada")
+        _selectedStatus = State(initialValue: order.status)
 
         var initial: [String: EditedItem] = [:]
         for item in order.items {
             initial[item.productId] = EditedItem(
                 quantity: item.quantity,
                 paidUnitPrice: item.paidUnitPrice,
-                observation: item.observation
+                observation: item.observation,
+                massa: item.massa ?? "",
+                sabor: item.sabor ?? ""
             )
         }
         _editedItems = State(initialValue: initial)
@@ -62,8 +72,9 @@ struct EditOrderView: View {
 
     private var totalOrderValue: Double {
         let existingTotal = order.items.reduce(0) { total, item in
-            guard let edited = editedItems[item.productId] else { return total }
-            return total + (edited.paidUnitPrice * edited.quantity)
+            let qty = editedItems[item.productId]?.quantity ?? item.quantity
+            let price = editedItems[item.productId]?.paidUnitPrice ?? item.paidUnitPrice
+            return total + (price * qty)
         }
         let newTotal = newItems.reduce(0) { $0 + ($1.unitprice * $1.quantity) }
         return Double(existingTotal + newTotal) / 100.0
@@ -74,8 +85,16 @@ struct EditOrderView: View {
             OrderBasicInfoSection(
                 allClients: allClients,
                 selectedClientId: $selectedClientId,
-                deliveryDate: $deliveryDate
+                deliveryDate: $deliveryDate,
+                deliveryAddress: $deliveryAddress
             )
+            Section("Status") {
+                Picker("Status", selection: $selectedStatus) {
+                    ForEach(OrderStatus.allCases, id: \.self) { status in
+                        Text(status.localizedName).tag(status)
+                    }
+                }
+            }
             existingItemsSection
             ReferenceImagesSection(
                 selectedImages: $newReferenceImages,
@@ -87,7 +106,9 @@ struct EditOrderView: View {
                 sectionTitle: "Adicionar Novos Itens",
                 selectedProductId: $selectedProductId,
                 quantity: $quantity,
-                itemTotalPaid: $itemTotalPaid,
+                itemUnitPrice: $itemUnitPrice,
+                itemMassa: $itemMassa,
+                itemSabor: $itemSabor,
                 itemObservation: $itemObservation,
                 isInputActive: $isInputActive,
                 items: newItems,
@@ -140,6 +161,11 @@ extension EditOrderView {
                 ForEach(order.items, id: \.productId) { item in
                     VStack(alignment: .leading, spacing: 8) {
                         Text(item.productName).font(.headline)
+                        if let size = item.productSize, !size.isEmpty {
+                            Text(size)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
 
                         HStack {
                             Text("Qtd:")
@@ -151,6 +177,18 @@ extension EditOrderView {
                             }
                             Spacer()
                             Text(formattedTotal(for: item))
+                        }
+
+                        TextField("Preço unit. (R$)", text: priceBinding(for: item))
+                            .textFieldStyle(.roundedBorder)
+                            .keyboardType(.decimalPad)
+                            .focused($isInputActive)
+
+                        if requiresMassaSabor(for: item) {
+                            TextField("Massa", text: massaBinding(for: item))
+                                .textFieldStyle(.roundedBorder)
+                            TextField("Sabor", text: saborBinding(for: item))
+                                .textFieldStyle(.roundedBorder)
                         }
 
                         if let obs = editedItems[item.productId]?.observation, !obs.isEmpty {
@@ -212,6 +250,41 @@ extension EditOrderView {
         return Formatters.currency.string(from: NSNumber(value: totalValue)) ?? "R$ 0,00"
     }
 
+    private func priceBinding(for item: OrderItem) -> Binding<String> {
+        Binding(
+            get: {
+                let cents = editedItems[item.productId]?.paidUnitPrice ?? item.paidUnitPrice
+                return String(format: "%.2f", Double(cents) / 100.0)
+            },
+            set: { newValue in
+                let cleaned = newValue.replacingOccurrences(of: ",", with: ".")
+                if let price = Double(cleaned) {
+                    editedItems[item.productId]?.paidUnitPrice = Int(round(price * 100))
+                }
+            }
+        )
+    }
+
+    private func requiresMassaSabor(for item: OrderItem) -> Bool {
+        if item.massa != nil || item.sabor != nil { return true }
+        guard let product = allProducts.first(where: { $0.id == item.productId }) else { return false }
+        return product.category?.lowercased() == "bolo" || product.name.lowercased() == "brigadeiro"
+    }
+
+    private func massaBinding(for item: OrderItem) -> Binding<String> {
+        Binding(
+            get: { editedItems[item.productId]?.massa ?? "" },
+            set: { editedItems[item.productId]?.massa = $0 }
+        )
+    }
+
+    private func saborBinding(for item: OrderItem) -> Binding<String> {
+        Binding(
+            get: { editedItems[item.productId]?.sabor ?? "" },
+            set: { editedItems[item.productId]?.sabor = $0 }
+        )
+    }
+
     private func loadData() async {
         do {
             async let fetchClients = viewModel.orderService.fetchClients()
@@ -227,23 +300,32 @@ extension EditOrderView {
     }
 
     private func addNewItem() {
-        let cleanedTotal = itemTotalPaid.replacingOccurrences(of: ",", with: ".")
+        let cleanedPrice = itemUnitPrice.replacingOccurrences(of: ",", with: ".")
         guard let q = Int(quantity),
-              let total = Double(cleanedTotal),
+              let unitPrice = Double(cleanedPrice),
               !selectedProductId.isEmpty,
-              q > 0 else { return }
+              q > 0,
+              unitPrice > 0 else { return }
 
-        let unitPriceCents = Int(round((total / Double(q)) * 100))
+        let product = allProducts.first(where: { $0.id == selectedProductId })
+        let requiresMassaSabor = product?.category?.lowercased() == "bolo" || product?.name.lowercased() == "brigadeiro"
+        guard !requiresMassaSabor || (!itemMassa.isEmpty && !itemSabor.isEmpty) else { return }
+
+        let unitPriceCents = Int(round(unitPrice * 100))
         newItems.append(OrderItemInput(
             productid: selectedProductId,
             quantity: q,
             unitprice: unitPriceCents,
-            observation: itemObservation.isEmpty ? nil : itemObservation
+            observation: itemObservation.isEmpty ? nil : itemObservation,
+            massa: itemMassa.isEmpty ? nil : itemMassa,
+            sabor: itemSabor.isEmpty ? nil : itemSabor
         ))
 
         selectedProductId = ""
         quantity = "1"
-        itemTotalPaid = ""
+        itemUnitPrice = ""
+        itemMassa = ""
+        itemSabor = ""
         itemObservation = ""
         isInputActive = false
     }
@@ -254,18 +336,28 @@ extension EditOrderView {
         let deliveryDateChanged = !Calendar.current.isDate(deliveryDate, equalTo: order.deliveryDate, toGranularity: .minute)
         let deliveryDatePayload: String? = deliveryDateChanged ? Formatters.iso8601.string(from: deliveryDate) : nil
 
+        let statusChanged = selectedStatus != order.status
+        let statusPayload: Int? = statusChanged ? selectedStatus.intValue : nil
+
+        let addressChanged = deliveryAddress != (order.deliveryAddress ?? "Retirada")
+        let addressPayload: String? = addressChanged ? (deliveryAddress.isEmpty ? nil : deliveryAddress) : nil
+
         var itemsPayload: [UpdateOrderItemRequest] = order.items.compactMap { item in
             guard let edited = editedItems[item.productId] else { return nil }
             let quantityChanged = edited.quantity != item.quantity
             let priceChanged = edited.paidUnitPrice != item.paidUnitPrice
             let obsChanged = edited.observation != item.observation
-            guard quantityChanged || priceChanged || obsChanged else { return nil }
+            let massaChanged = edited.massa != (item.massa ?? "")
+            let saborChanged = edited.sabor != (item.sabor ?? "")
+            guard quantityChanged || priceChanged || obsChanged || massaChanged || saborChanged else { return nil }
 
             return UpdateOrderItemRequest(
                 productId: item.productId,
                 quantity: quantityChanged ? edited.quantity : nil,
                 paidUnitPrice: priceChanged ? edited.paidUnitPrice : nil,
-                observation: obsChanged ? edited.observation : nil
+                observation: obsChanged ? edited.observation : nil,
+                massa: massaChanged ? (edited.massa.isEmpty ? nil : edited.massa) : nil,
+                sabor: saborChanged ? (edited.sabor.isEmpty ? nil : edited.sabor) : nil
             )
         }
 
@@ -274,7 +366,9 @@ extension EditOrderView {
                 productId: item.productid,
                 quantity: item.quantity,
                 paidUnitPrice: item.unitprice,
-                observation: item.observation
+                observation: item.observation,
+                massa: item.massa,
+                sabor: item.sabor
             )
         }
         itemsPayload.append(contentsOf: newItemsPayload)
@@ -283,7 +377,8 @@ extension EditOrderView {
             let newObjectKeys = try await uploadReferenceImages()
             let payload = UpdateOrderRequest(
                 deliveryDate: deliveryDatePayload,
-                status: nil,
+                status: statusPayload,
+                deliveryAddress: addressPayload,
                 items: itemsPayload.isEmpty ? nil : itemsPayload,
                 references: newObjectKeys.isEmpty ? nil : newObjectKeys
             )

@@ -5,16 +5,16 @@
 //  Created by Theo on 11/03/26.
 //
 
-
 import SwiftUI
 
 struct ClientsView: View {
     @StateObject private var viewModel = ClientsViewModel()
-    
+
     @State private var searchText = ""
     @State private var showActiveOnly = true
     @State private var showAddClientSheet = false
-    
+    @State private var selectedClient: Client?
+
     private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 
     var filteredClients: [Client] {
@@ -46,9 +46,12 @@ struct ClientsView: View {
             .sheet(isPresented: $showAddClientSheet) {
                 AddClientView(viewModel: viewModel)
             }
+            .sheet(item: $selectedClient) { client in
+                EditClientView(client: client, viewModel: viewModel)
+            }
         }
     }
-    
+
     @ViewBuilder
     private var contentView: some View {
         if viewModel.isLoading && viewModel.clients.isEmpty {
@@ -61,6 +64,7 @@ struct ClientsView: View {
             List {
                 ForEach(filteredClients) { client in
                     ClientCard(client: client)
+                        .onTapGesture { selectedClient = client }
                         .listRowSeparator(.hidden)
                         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                         .listRowBackground(Color.clear)
@@ -79,6 +83,13 @@ struct ClientsView: View {
                                     Label("Desativar", systemImage: "person.crop.circle.badge.xmark")
                                 }
                                 .tint(.orange)
+                            } else {
+                                Button {
+                                    Task { await viewModel.activateClient(id: client.id) }
+                                } label: {
+                                    Label("Ativar", systemImage: "person.crop.circle.badge.checkmark")
+                                }
+                                .tint(.green)
                             }
                         }
                 }
@@ -104,7 +115,7 @@ private extension ClientsView {
             .padding(8)
             .background(Color(uiColor: .secondarySystemBackground))
             .cornerRadius(8)
-            
+
             Menu {
                 Picker("Status", selection: $showActiveOnly) {
                     Text("Ativos").tag(true)
@@ -115,7 +126,7 @@ private extension ClientsView {
                     .font(.title2)
                     .foregroundColor(brandColor)
             }
-            
+
             Button {
                 showAddClientSheet = true
             } label: {
@@ -134,15 +145,15 @@ private extension ClientsView {
 struct AddClientView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var viewModel: ClientsViewModel
-    
+
     @State private var name = ""
     @State private var mobile = ""
     @State private var isSubmitting = false
-    
+
     var isFormValid: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
     }
-    
+
     var body: some View {
         NavigationStack {
             Form {
@@ -150,7 +161,7 @@ struct AddClientView: View {
                     TextField("Nome *", text: $name)
                         .textContentType(.name)
                         .autocorrectionDisabled()
-                    
+
                     TextField("Celular (Opcional)", text: $mobile)
                         .keyboardType(.numberPad)
                         .textContentType(.telephoneNumber)
@@ -163,10 +174,8 @@ struct AddClientView: View {
                     Button("Cancelar") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Salvar") {
-                        submit()
-                    }
-                    .disabled(!isFormValid || isSubmitting)
+                    Button("Salvar") { submit() }
+                        .disabled(!isFormValid || isSubmitting)
                 }
             }
             .overlay {
@@ -178,18 +187,83 @@ struct AddClientView: View {
                 }
             }
         }
-        // Prevents modal dismissal via swipe down while submitting
         .interactiveDismissDisabled(isSubmitting)
     }
-    
+
     private func submit() {
         isSubmitting = true
         Task {
             let success = await viewModel.addClient(name: name, mobile: mobile)
             isSubmitting = false
-            if success {
-                dismiss()
+            if success { dismiss() }
+        }
+    }
+}
+
+// MARK: - Edit Client Sheet
+
+struct EditClientView: View {
+    @Environment(\.dismiss) private var dismiss
+    let client: Client
+    @ObservedObject var viewModel: ClientsViewModel
+
+    @State private var name: String
+    @State private var mobile: String
+    @State private var isSubmitting = false
+
+    init(client: Client, viewModel: ClientsViewModel) {
+        self.client = client
+        self.viewModel = viewModel
+        _name = State(initialValue: client.name)
+        _mobile = State(initialValue: client.mobile ?? "")
+    }
+
+    var isFormValid: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(header: Text("Dados do Cliente")) {
+                    TextField("Nome *", text: $name)
+                        .textContentType(.name)
+                        .autocorrectionDisabled()
+
+                    TextField("Celular (Opcional)", text: $mobile)
+                        .keyboardType(.numberPad)
+                        .textContentType(.telephoneNumber)
+                }
             }
+            .navigationTitle("Editar Cliente")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancelar") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Salvar") { submit() }
+                        .disabled(!isFormValid || isSubmitting)
+                }
+            }
+            .overlay {
+                if isSubmitting {
+                    ProgressView()
+                        .padding()
+                        .background(.ultraThinMaterial)
+                        .cornerRadius(8)
+                }
+            }
+        }
+        .interactiveDismissDisabled(isSubmitting)
+    }
+
+    private func submit() {
+        isSubmitting = true
+        Task {
+            let success = await viewModel.updateClient(id: client.id, name: name, mobile: mobile)
+            isSubmitting = false
+            if success { dismiss() }
         }
     }
 }
@@ -198,16 +272,16 @@ struct AddClientView: View {
 
 struct ClientCard: View {
     let client: Client
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(client.name)
                     .font(.headline)
                     .foregroundColor(.primary)
-                
+
                 Spacer()
-                
+
                 if !client.isActive {
                     Text("Inativo")
                         .font(.caption2)
@@ -219,7 +293,7 @@ struct ClientCard: View {
                         .cornerRadius(6)
                 }
             }
-            
+
             if let mobile = client.mobile, !mobile.isEmpty {
                 Text(mobile)
                     .font(.subheadline)

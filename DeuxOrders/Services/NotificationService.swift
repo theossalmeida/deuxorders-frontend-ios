@@ -16,43 +16,53 @@ class NotificationService {
 
     func scheduleNotifications(orders: [Order]) async {
         let center = UNUserNotificationCenter.current()
+
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .authorized else {
+            print("⚠️ Notificações não autorizadas: \(settings.authorizationStatus.rawValue)")
+            return
+        }
+
         center.removePendingNotificationRequests(withIdentifiers: ["morning-daily", "afternoon-daily"])
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
 
-        let todayCount = orders.filter {
-            calendar.isDate($0.deliveryDate, inSameDayAs: today) && $0.status == .pending
-        }.count
+        let todayPending = orders.filter {
+            calendar.isDate($0.deliveryDate, inSameDayAs: today) && $0.status != .completed
+        }
 
-        let tomorrowCount = orders.filter {
-            calendar.isDate($0.deliveryDate, inSameDayAs: tomorrow) && $0.status == .pending
-        }.count
+        let tomorrowPending = orders.filter {
+            calendar.isDate($0.deliveryDate, inSameDayAs: tomorrow) && $0.status != .completed
+        }
 
-        if todayCount > 0 {
-            await schedule(
-                id: "morning-daily",
-                title: "Bom dia! ☀️",
-                body: todayCount == 1
+        let todayCount = todayPending.count
+        let tomorrowCount = tomorrowPending.count
+
+        await schedule(
+            id: "morning-daily",
+            title: "Bom dia! ☀️",
+            body: todayCount == 0
+                ? "Nenhum pedido para entregar hoje."
+                : todayCount == 1
                     ? "Você tem 1 pedido para entregar hoje."
                     : "Você tem \(todayCount) pedidos para entregar hoje.",
-                hour: 8,
-                minute: 0
-            )
-        }
+            hour: 8,
+            minute: 0
+        )
 
-        if tomorrowCount > 0 {
-            await schedule(
-                id: "afternoon-daily",
-                title: "Lembrete de amanhã 📦",
-                body: tomorrowCount == 1
+        await schedule(
+            id: "afternoon-daily",
+            title: "Lembrete de amanhã 📦",
+            body: tomorrowCount == 0
+                ? "Nenhum pedido para entregar amanhã."
+                : tomorrowCount == 1
                     ? "Você tem 1 pedido para entregar amanhã."
                     : "Você tem \(tomorrowCount) pedidos para entregar amanhã.",
-                hour: 15,
-                minute: 0
-            )
-        }
+            hour: 15,
+            minute: 0
+        )
     }
 
     private func schedule(id: String, title: String, body: String, hour: Int, minute: Int) async {

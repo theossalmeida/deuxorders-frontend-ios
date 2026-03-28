@@ -46,6 +46,14 @@ class ClientService {
         try validate(response: response)
     }
 
+    func updateClient(id: String, input: ClientInput) async throws {
+        var request = try makeRequest(endpoint: "clients/\(id)", method: "PUT")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(input)
+        let (_, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response)
+    }
+
     func activateClient(id: String) async throws {
         var request = try makeRequest(endpoint: "clients/\(id)/active", method: "PATCH")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

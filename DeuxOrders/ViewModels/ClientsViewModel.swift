@@ -52,6 +52,23 @@ class ClientsViewModel: ObservableObject {
         }
     }
     
+    func updateClient(id: String, name: String, mobile: String) async -> Bool {
+        let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedMobile = mobile.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalMobile = cleanedMobile.isEmpty ? nil : cleanedMobile
+
+        let input = ClientInput(name: cleanedName, mobile: finalMobile)
+
+        do {
+            try await clientService.updateClient(id: id, input: input)
+            await loadClients()
+            return true
+        } catch {
+            self.errorMessage = "Falha ao atualizar o cliente. Verifique a conexão."
+            return false
+        }
+    }
+
     func deleteClient(id: String) async {
         do {
             try await clientService.deleteClient(id: id)

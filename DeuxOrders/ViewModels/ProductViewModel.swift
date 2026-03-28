@@ -13,7 +13,7 @@ class ProductsViewModel: ObservableObject {
     @Published var products: [ProductResponse] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
-    
+
     private let productService: ProductService
 
     init(productService: ProductService? = nil) {
@@ -23,7 +23,7 @@ class ProductsViewModel: ObservableObject {
     func loadProducts() async {
         isLoading = true
         defer { isLoading = false }
-        
+
         do {
             self.products = try await productService.fetchProducts()
             self.errorMessage = nil
@@ -31,16 +31,16 @@ class ProductsViewModel: ObservableObject {
             self.errorMessage = "Falha ao carregar a lista de produtos."
         }
     }
-    
-    func addProduct(name: String, description: String, price: Double) async -> Bool {
+
+    func addProduct(name: String, description: String, price: Double, category: String? = nil, size: String? = nil, imageData: Data? = nil, imageContentType: String? = nil) async -> Bool {
         let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanedDesc = description.trimmingCharacters(in: .whitespacesAndNewlines)
         let finalDesc = cleanedDesc.isEmpty ? nil : cleanedDesc
-        
-        let input = ProductInput(name: cleanedName, descricao: finalDesc, price: price)
-        
+        let finalCategory = category?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().nilIfEmpty
+        let finalSize = size?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().nilIfEmpty
+
         do {
-            try await productService.createProduct(input: input)
+            try await productService.createProduct(name: cleanedName, descricao: finalDesc, price: price, category: finalCategory, size: finalSize, imageData: imageData, imageContentType: imageContentType)
             await loadProducts()
             return true
         } catch {
@@ -48,7 +48,35 @@ class ProductsViewModel: ObservableObject {
             return false
         }
     }
-    
+
+    func updateProduct(id: String, name: String, description: String, price: Double, category: String? = nil, size: String? = nil, imageData: Data? = nil, imageContentType: String? = nil) async -> Bool {
+        let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedDesc = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalDesc = cleanedDesc.isEmpty ? nil : cleanedDesc
+        let finalCategory = category?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().nilIfEmpty
+        let finalSize = size?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().nilIfEmpty
+
+        do {
+            try await productService.updateProduct(id: id, name: cleanedName, descricao: finalDesc, price: price, category: finalCategory, size: finalSize, imageData: imageData, imageContentType: imageContentType)
+            await loadProducts()
+            return true
+        } catch {
+            self.errorMessage = "Falha ao atualizar o produto. Verifique a conexão."
+            return false
+        }
+    }
+
+    func deleteProductImage(id: String) async -> Bool {
+        do {
+            try await productService.deleteProductImage(id: id)
+            await loadProducts()
+            return true
+        } catch {
+            self.errorMessage = "Falha ao remover a imagem."
+            return false
+        }
+    }
+
     func deleteProduct(id: String) async {
         do {
             try await productService.deleteProduct(id: id)
@@ -57,18 +85,36 @@ class ProductsViewModel: ObservableObject {
             self.errorMessage = "Este produto possui pedidos associados e não pode ser excluído. Sugerimos que seja desativado."
         }
     }
-    
+
     func deactivateProduct(id: String) async {
         guard let index = products.firstIndex(where: { $0.id == id }) else { return }
-        
+
         let originalState = products[index].status
-        products[index].status = false // Optimistic UI update
-        
+        products[index].status = false
+
         do {
             try await productService.deactivateProduct(id: id)
         } catch {
-            products[index].status = originalState // Rollback on failure
+            products[index].status = originalState
             self.errorMessage = "Falha ao comunicar desativação ao servidor."
         }
     }
+
+    func activateProduct(id: String) async {
+        guard let index = products.firstIndex(where: { $0.id == id }) else { return }
+
+        let originalState = products[index].status
+        products[index].status = true
+
+        do {
+            try await productService.activateProduct(id: id)
+        } catch {
+            products[index].status = originalState
+            self.errorMessage = "Falha ao comunicar ativação ao servidor."
+        }
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

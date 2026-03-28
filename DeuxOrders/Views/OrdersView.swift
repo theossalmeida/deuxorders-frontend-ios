@@ -14,9 +14,10 @@ struct OrdersView: View {
     @State private var selectedStatus: OrderStatus? = nil
     
     @State private var startDate = Date()
-    @State private var endDate = Calendar.current.date(byAdding: .day, value: 30, to: Date()) ?? Date()
+    @State private var endDate = Calendar.current.date(byAdding: .day, value: 6, to: Date()) ?? Date()
     @State private var showDatePicker = false
     @State private var showingNewOrderSheet = false
+    @StateObject private var newOrderState = NewOrderState()
     
     private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 
@@ -50,7 +51,7 @@ struct OrdersView: View {
             }
             .navigationTitle("Pedidos")
             .sheet(isPresented: $showingNewOrderSheet) {
-                NewOrderView(viewModel: viewModel)
+                NewOrderView(viewModel: viewModel, state: newOrderState)
             }
             .task {
                 await viewModel.loadOrders()

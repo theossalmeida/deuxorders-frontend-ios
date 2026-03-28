@@ -151,8 +151,13 @@ class OrderService {
     }
 
     func fetchProducts() async throws -> [ProductResponse] {
-        let url = URL(string: baseURL + "products/dropdown?status=true")!
-        return try await fetchData(url: url, responseType: [ProductResponse].self)
+        guard let url = URL(string: baseURL + "products/all") else { throw NetworkError.invalidURL }
+        guard let token = token else { throw NetworkError.unauthorized }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response)
+        return try JSONDecoder().decode([ProductResponse].self, from: data)
     }
     
     private func performRequestWithBody<T: Codable>(endpoint: String, method: String, input: T) async throws {
@@ -182,7 +187,7 @@ class OrderService {
         try validate(response: response)
     }
     
-    private func fetchData<T: Codable>(url: URL, responseType: T.Type) async throws -> T {
+    private func fetchData<T: Decodable>(url: URL, responseType: T.Type) async throws -> T {
         guard let token = token else { throw NetworkError.unauthorized }
         
         var request = URLRequest(url: url)
