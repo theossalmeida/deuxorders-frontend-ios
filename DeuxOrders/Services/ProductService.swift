@@ -18,7 +18,8 @@ class ProductService {
         let request = try makeRequest(endpoint: "products/all", method: "GET")
         let (data, response) = try await URLSession.shared.data(for: request)
         try validate(response: response)
-        return try JSONDecoder().decode([ProductResponse].self, from: data)
+        struct ProductsResponse: Decodable { let items: [ProductResponse] }
+        return try JSONDecoder().decode(ProductsResponse.self, from: data).items
     }
 
     func createProduct(name: String, descricao: String?, price: Double, category: String? = nil, size: String? = nil, imageData: Data? = nil, imageContentType: String? = nil) async throws {

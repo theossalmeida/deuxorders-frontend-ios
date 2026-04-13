@@ -18,12 +18,12 @@ class ClientService {
         let request = try makeRequest(endpoint: "clients/all", method: "GET")
         let (data, response) = try await URLSession.shared.data(for: request)
         try validate(response: response)
-        
-        return try JSONDecoder().decode([Client].self, from: data)
+
+        struct ClientsResponse: Decodable { let items: [Client] }
+        return try JSONDecoder().decode(ClientsResponse.self, from: data).items
     }
     
     func createClient(input: ClientInput) async throws {
-        // Assuming the endpoint follows the "orders/new" pattern. Adjust if necessary.
         var request = try makeRequest(endpoint: "clients/new", method: "POST")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(input)
