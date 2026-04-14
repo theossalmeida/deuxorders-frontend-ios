@@ -151,13 +151,8 @@ class OrderService {
     }
 
     func fetchProducts() async throws -> [ProductResponse] {
-        guard let url = URL(string: baseURL + "products/all") else { throw NetworkError.invalidURL }
-        guard let token = token else { throw NetworkError.unauthorized }
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try validate(response: response)
-        return try JSONDecoder().decode([ProductResponse].self, from: data)
+        let url = URL(string: baseURL + "products/dropdown?status=true")!
+        return try await fetchData(url: url, responseType: [ProductResponse].self)
     }
     
     private func performRequestWithBody<T: Codable>(endpoint: String, method: String, input: T) async throws {
