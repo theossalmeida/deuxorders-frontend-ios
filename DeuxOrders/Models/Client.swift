@@ -12,11 +12,11 @@ struct Client: Codable, Identifiable {
     let name: String
     let mobile: String?
     var isActive: Bool
-    
+
     enum CodingKeys: String, CodingKey {
         case id, name, mobile, isActive
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(String.self, forKey: .id)
@@ -24,4 +24,29 @@ struct Client: Codable, Identifiable {
         self.mobile = try container.decodeIfPresent(String.self, forKey: .mobile)
         self.isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive) ?? true
     }
+}
+
+// MARK: - Client Detail (with stats and order history)
+
+struct ClientStats: Decodable {
+    let totalOrders: Int
+    let totalSpentCents: Int
+    let lastOrderDate: String?
+}
+
+struct ClientOrder: Decodable, Identifiable {
+    let id: String
+    let deliveryDate: Date
+    let status: OrderStatus
+    let totalPaidCents: Int
+    let totalValueCents: Int
+}
+
+struct ClientDetail: Decodable {
+    let id: String
+    let name: String
+    let mobile: String?
+    let status: Bool
+    let stats: ClientStats
+    let orders: [ClientOrder]
 }

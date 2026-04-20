@@ -80,7 +80,7 @@ struct OrdersView: View {
                 ForEach(filteredOrders.sorted { $0.deliveryDate < $1.deliveryDate }) { order in
                 ZStack {
                         OrderCard(order: order)
-                        NavigationLink(destination: EditOrderView(viewModel: viewModel, order: order)) {
+                        NavigationLink(destination: OrderDetailView(order: order, viewModel: viewModel)) {
                             EmptyView()
                         }
                         .opacity(0)
@@ -204,9 +204,15 @@ struct OrderCard: View {
                     .background(order.status.color.opacity(0.2))
                     .foregroundColor(order.status.color)
                     .cornerRadius(6)
-                
+
+                if order.isPaid {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                }
+
                 Spacer()
-                
+
                 Text(formattedTotal)
                     .font(.headline)
                     .foregroundColor(.primary)

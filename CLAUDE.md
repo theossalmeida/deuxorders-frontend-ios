@@ -31,7 +31,7 @@ xcodebuild -project DeuxOrders.xcodeproj -scheme DeuxOrders -destination 'platfo
 - `ViewModel` (`@MainActor ObservableObject`) in `ViewModels/`
 - `View` (SwiftUI) in `Views/`
 
-Both `OrdersViewModel` and `DashboardViewModel` are instantiated as `@StateObject` in `MainTabView` and passed down to their respective views. `ProductsView` and `ClientsView` create their own VMs internally.
+`OrdersViewModel`, `DashboardViewModel`, and `CashFlowViewModel` are all instantiated as `@StateObject` in `MainTabView` and passed down to their respective views. `ProductsView` and `ClientsView` create their own VMs internally.
 
 **Reusable order form components:** `OrderFormComponents.swift` contains `OrderBasicInfoSection`, `AddItemFormSection`, and `OrderTotalSection`, shared by `NewOrderView` and `EditOrderView`.
 
@@ -47,13 +47,27 @@ Both `OrdersViewModel` and `DashboardViewModel` are instantiated as `@StateObjec
 
 **Local notifications:** `NotificationService` (singleton) schedules two `UNCalendarNotificationTrigger`s with `repeats: true` — 8:00 AM (pending orders today) and 3:00 PM (pending orders tomorrow). Re-scheduled via `scheduleNotifications(orders:)` after every `loadOrders()` call.
 
+**Navigation:** 5-tab layout — Painel (Dashboard) | Pedidos (Orders) | Caixa (Cash Flow) | Produtos (Products) | Clientes (Clients). Tab accent color is brand burgundy.
+
+**Cash flow module:** `CashFlowViewModel` manages entries, summary, filters, and chart data. `CashService` calls `/cash/entries` (CRUD) and `/cash/summary`. Cash dashboard shows hero balance, bar chart, category breakdown, and recent entries. Entries support filtering by type (Inflow/Outflow) and search by counterparty.
+
+**Order payment tracking:** `Order` has `paidAt` and `paidByUserName` fields. `OrderService.payOrder(id:)` → PATCH `/orders/{id}/pay`; `unpayOrder(id:reason:)` → PATCH `/orders/{id}/unpay`. Payment creates a cash entry automatically on the backend.
+
+**Detail views:** `OrderDetailView` shows status pipeline, items, delivery, payment, client cards. `ClientDetailView` loads stats + order history via GET `/clients/{id}?orders=true`. `ProductDetailView` shows image, info, performance placeholder, and inline edit.
+
+**Order status pipeline:** Visual stepper in `OrderDetailView`: Received → Preparing → WaitingPickupOrDelivery → Completed. Canceled shown as a branch. `Order.nextStatus` computed property determines the next logical status.
+
 ## API
 
 Base URL: `https://api-orders.deuxcerie.com.br/api/v1/`
 
 All authenticated requests use `Authorization: Bearer <token>` loaded from Keychain. The `OrderService` handles auth, fetching, mutations, and date decoding (ISO 8601 with and without fractional seconds — dual formatters to handle backend inconsistency).
 
-`OrderService` also exposes `/clients/dropdown?status=true` and `/products/dropdown?status=true` for populating order form pickers.
+`OrderService` also exposes `/clients/dropdown?status=true` and `/products/dropdown?status=true` for populating order form pickers. Payment endpoints: PATCH `/orders/{id}/pay` and PATCH `/orders/{id}/unpay` (body: `{ reason }`).
+
+`CashService` exposes: GET `/cash/entries` (paginated, filterable), GET `/cash/entries/{id}`, POST `/cash/entries`, PUT `/cash/entries/{id}`, DELETE `/cash/entries/{id}` (body: `{ reason }`), GET `/cash/summary`.
+
+`ClientService.fetchClientDetail(id:)` calls GET `/clients/{id}?orders=true` returning `ClientDetail` with stats and order history.
 
 **Monetary values are stored as integers in cents** (e.g., `totalPaid: 1500` = R$15,00). Divide by 100.0 for display and format with `BRL` locale.
 

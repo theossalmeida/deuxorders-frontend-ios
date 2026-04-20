@@ -80,14 +80,14 @@ struct AddItemFormSection: View {
     private var requiresMassaSabor: Bool {
         guard !selectedProductId.isEmpty,
               let product = allProducts.first(where: { $0.id == selectedProductId }) else { return false }
-        return product.category?.lowercased() == "bolo" || product.name.lowercased() == "brigadeiro"
+        let cat = product.category?.lowercased() ?? ""
+        return cat == "bolo" || cat == "doce"
     }
 
     private var canAddItem: Bool {
         !selectedProductId.isEmpty &&
         (Int(quantity) ?? 0) > 0 &&
-        (Double(itemUnitPrice.replacingOccurrences(of: ",", with: ".")) ?? 0) > 0 &&
-        (!requiresMassaSabor || (!itemMassa.isEmpty && !itemSabor.isEmpty))
+        (Double(itemUnitPrice.replacingOccurrences(of: ",", with: ".")) ?? 0) > 0
     }
 
     var body: some View {

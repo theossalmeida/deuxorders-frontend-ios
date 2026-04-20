@@ -130,10 +130,6 @@ struct NewOrderView: View {
               q > 0,
               unitPrice > 0 else { return }
 
-        let product = allProducts.first(where: { $0.id == state.selectedProductId })
-        let requiresMassaSabor = product?.category?.lowercased() == "bolo" || product?.name.lowercased() == "brigadeiro"
-        guard !requiresMassaSabor || (!state.itemMassa.isEmpty && !state.itemSabor.isEmpty) else { return }
-
         let unitPriceCents = Int(round(unitPrice * 100))
         state.items.append(OrderItemInput(
             productid: state.selectedProductId,

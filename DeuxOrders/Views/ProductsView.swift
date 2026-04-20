@@ -72,8 +72,13 @@ struct ProductsView: View {
         } else {
             List {
                 ForEach(filteredProducts) { product in
-                    ProductCard(product: product)
-                        .onTapGesture { selectedProduct = product }
+                    ZStack {
+                        ProductCard(product: product)
+                        NavigationLink(destination: ProductDetailView(product: product, viewModel: viewModel)) {
+                            EmptyView()
+                        }
+                        .opacity(0)
+                    }
                         .listRowSeparator(.hidden)
                         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                         .listRowBackground(Color.clear)

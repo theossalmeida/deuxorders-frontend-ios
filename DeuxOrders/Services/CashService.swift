@@ -1,32 +1,31 @@
 //
-//  ClientService.swift
+//  CashService.swift
 //  DeuxOrders
-//
-//  Created by Theo on 11/03/26.
 //
 
 import Foundation
 
-class ClientService {
+class CashService {
     private let baseURL = "https://deux-erp.deuxcerie.com.br/api/v1/"
-    
+
     private static let isoFormatter: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
     }()
 
     private static let fallbackFormatter: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime]
-        return f
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
     }()
 
-    private let dateDecoder: JSONDecoder = {
+    private let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom { decoder in
             let container = try decoder.singleValueContainer()
             let dateString = try container.decode(String.self)
+
             if let date = isoFormatter.date(from: dateString) { return date }
             if let date = fallbackFormatter.date(from: dateString) { return date }
             return Date()
@@ -38,74 +37,82 @@ class ClientService {
         KeychainService.load(forKey: "user_token")
     }
 
-    func fetchClients() async throws -> [Client] {
-        let request = try makeRequest(endpoint: "clients/all?size=100 ", method: "GET")
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try validate(response: response)
+    // MARK: - Public API
 
-        struct ClientsResponse: Decodable { let items: [Client] }
-        return try JSONDecoder().decode(ClientsResponse.self, from: data).items
+    func fetchEntries(filters: CashFlowFilters) async throws -> CashFlowEntriesResponse {
+        let url = URL(string: baseURL + "cash/entries" + filters.queryString())!
+        return try await fetchData(url: url, responseType: CashFlowEntriesResponse.self)
     }
-    
-    func createClient(input: ClientInput) async throws {
-        var request = try makeRequest(endpoint: "clients/new", method: "POST")
+
+    func fetchEntry(id: String) async throws -> CashFlowEntry {
+        let url = URL(string: baseURL + "cash/entries/\(id)")!
+        return try await fetchData(url: url, responseType: CashFlowEntry.self)
+    }
+
+    func createEntry(input: CreateCashFlowEntryInput) async throws {
+        var request = try makeRequest(endpoint: "cash/entries", method: "POST")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(input)
-        
-        let (_, response) = try await URLSession.shared.data(for: request)
-        try validate(response: response)
-    }
-    
-    func deleteClient(id: String) async throws {
-        let request = try makeRequest(endpoint: "clients/\(id)", method: "DELETE")
-        let (_, response) = try await URLSession.shared.data(for: request)
-        try validate(response: response)
-    }
-    
-    func deactivateClient(id: String) async throws {
-        var request = try makeRequest(endpoint: "clients/\(id)/inactive", method: "PATCH")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         let (_, response) = try await URLSession.shared.data(for: request)
         try validate(response: response)
     }
 
-    func updateClient(id: String, input: ClientInput) async throws {
-        var request = try makeRequest(endpoint: "clients/\(id)", method: "PUT")
+    func updateEntry(id: String, input: CreateCashFlowEntryInput) async throws {
+        var request = try makeRequest(endpoint: "cash/entries/\(id)", method: "PUT")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(input)
+
         let (_, response) = try await URLSession.shared.data(for: request)
         try validate(response: response)
     }
 
-    func fetchClientDetail(id: String) async throws -> ClientDetail {
-        let request = try makeRequest(endpoint: "clients/\(id)?orders=true", method: "GET")
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try validate(response: response)
-        return try dateDecoder.decode(ClientDetail.self, from: data)
-    }
-
-    func activateClient(id: String) async throws {
-        var request = try makeRequest(endpoint: "clients/\(id)/active", method: "PATCH")
+    func deleteEntry(id: String, reason: String) async throws {
+        var request = try makeRequest(endpoint: "cash/entries/\(id)", method: "DELETE")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(DeleteCashFlowEntryInput(reason: reason))
 
         let (_, response) = try await URLSession.shared.data(for: request)
         try validate(response: response)
     }
-    
+
+    func fetchSummary(from: Date?, to: Date?) async throws -> CashFlowSummary {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+
+        var params: [String] = []
+        if let from = from { params.append("from=\(formatter.string(from: from))") }
+        if let to = to { params.append("to=\(formatter.string(from: to))") }
+        let qs = params.isEmpty ? "" : "?\(params.joined(separator: "&"))"
+
+        let url = URL(string: baseURL + "cash/summary" + qs)!
+        return try await fetchData(url: url, responseType: CashFlowSummary.self)
+    }
+
     // MARK: - Private Helpers
-    
+
     private func makeRequest(endpoint: String, method: String) throws -> URLRequest {
         guard let url = URL(string: baseURL + endpoint) else { throw NetworkError.invalidURL }
         guard let token = token else { throw NetworkError.unauthorized }
-        
+
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
+
         return request
     }
-    
+
+    private func fetchData<T: Decodable>(url: URL, responseType: T.Type) async throws -> T {
+        guard let token = token else { throw NetworkError.unauthorized }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response)
+        return try decoder.decode(T.self, from: data)
+    }
+
     private func validate(response: URLResponse) throws {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NetworkError.serverError("Resposta inválida do servidor")

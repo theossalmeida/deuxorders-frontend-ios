@@ -16,8 +16,9 @@ struct ProductResponse: Codable, Identifiable {
     let size: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, price, status, image, category, size
+        case id, name, price, status, image, category
         case description = "descricao"
+        case size = "tamanho"
     }
 
     init(from decoder: Decoder) throws {

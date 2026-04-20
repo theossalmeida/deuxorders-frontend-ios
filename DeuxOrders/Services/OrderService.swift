@@ -16,6 +16,10 @@ struct DeleteReferenceRequest: Codable {
     let objectKey: String
 }
 
+struct UnpayRequest: Codable {
+    let reason: String
+}
+
 struct PresignedUploadRequest: Codable {
     let fileName: String
     let contentType: String
@@ -27,7 +31,7 @@ struct PresignedUploadResponse: Codable {
 }
 
 class OrderService {
-    private let baseURL = "https://api-orders.deuxcerie.com.br/api/v1/"
+    private let baseURL = "https://deux-erp.deuxcerie.com.br/api/v1/"
     
     private static let isoFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -78,6 +82,14 @@ class OrderService {
     
     func cancelOrder(id: String) async throws {
         try await performPatch(endpoint: "orders/\(id)/cancel")
+    }
+
+    func payOrder(id: String) async throws {
+        try await performPatch(endpoint: "orders/\(id)/pay")
+    }
+
+    func unpayOrder(id: String, reason: String) async throws {
+        try await performRequestWithBody(endpoint: "orders/\(id)/unpay", method: "PATCH", input: UnpayRequest(reason: reason))
     }
     
     func cancelOrderItem(orderId: String, productId: String) async throws {
@@ -151,7 +163,7 @@ class OrderService {
     }
 
     func fetchProducts() async throws -> [ProductResponse] {
-        let url = URL(string: baseURL + "products/dropdown?status=true")!
+        let url = URL(string: baseURL + "products/all?size=100&status=true")!
         return try await fetchData(url: url, responseType: [ProductResponse].self)
     }
     

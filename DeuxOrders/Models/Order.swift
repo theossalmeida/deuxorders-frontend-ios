@@ -69,9 +69,26 @@ struct Order: Decodable, Identifiable {
     let items: [OrderItem]
     let references: [String]?
     let deliveryAddress: String?
+    let paidAt: Date?
+    let paidByUserName: String?
 
     var shortId: String {
         String(id.prefix(8)).uppercased()
+    }
+
+    var isPaid: Bool {
+        paidAt != nil
+    }
+
+    /// Next logical status in the pipeline (Received -> Preparing -> WaitingPickupOrDelivery -> Completed)
+    var nextStatus: OrderStatus? {
+        switch status {
+        case .received: return .preparing
+        case .pending: return .preparing
+        case .preparing: return .waitingPickupOrDelivery
+        case .waitingPickupOrDelivery: return .completed
+        case .completed, .canceled: return nil
+        }
     }
 }
 

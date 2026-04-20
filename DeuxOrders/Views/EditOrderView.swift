@@ -268,7 +268,8 @@ extension EditOrderView {
     private func requiresMassaSabor(for item: OrderItem) -> Bool {
         if item.massa != nil || item.sabor != nil { return true }
         guard let product = allProducts.first(where: { $0.id == item.productId }) else { return false }
-        return product.category?.lowercased() == "bolo" || product.name.lowercased() == "brigadeiro"
+        let cat = product.category?.lowercased() ?? ""
+        return cat == "bolo" || cat == "doce"
     }
 
     private func massaBinding(for item: OrderItem) -> Binding<String> {
@@ -306,10 +307,6 @@ extension EditOrderView {
               !selectedProductId.isEmpty,
               q > 0,
               unitPrice > 0 else { return }
-
-        let product = allProducts.first(where: { $0.id == selectedProductId })
-        let requiresMassaSabor = product?.category?.lowercased() == "bolo" || product?.name.lowercased() == "brigadeiro"
-        guard !requiresMassaSabor || (!itemMassa.isEmpty && !itemSabor.isEmpty) else { return }
 
         let unitPriceCents = Int(round(unitPrice * 100))
         newItems.append(OrderItemInput(

@@ -2,7 +2,7 @@
 import Foundation
 
 class DashboardService {
-    private let baseURL = "https://api-orders.deuxcerie.com.br/api/v1/dashboard"
+    private let baseURL = "https://deux-erp.deuxcerie.com.br/api/v1/dashboard"
 
     private var token: String? {
         KeychainService.load(forKey: "user_token")

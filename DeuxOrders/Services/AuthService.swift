@@ -9,7 +9,7 @@ import Foundation
 
 class AuthService {
     
-    private let baseURL = "https://api-orders.deuxcerie.com.br/api/v1/auth"
+    private let baseURL = "https://deux-erp.deuxcerie.com.br/api/v1/auth"
 
     func login(credentials: UserCredentials) async throws -> String {
         guard let url = URL(string: "\(baseURL)/login") else {

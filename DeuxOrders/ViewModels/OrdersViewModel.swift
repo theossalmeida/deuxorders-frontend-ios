@@ -69,6 +69,24 @@ class OrdersViewModel: ObservableObject {
         }
     }
     
+    func markAsPaid(order: Order) async {
+        do {
+            try await orderService.payOrder(id: order.id)
+            await loadOrders()
+        } catch {
+            self.errorMessage = "Falha ao marcar pedido como pago."
+        }
+    }
+
+    func reversePayment(order: Order, reason: String) async {
+        do {
+            try await orderService.unpayOrder(id: order.id, reason: reason)
+            await loadOrders()
+        } catch {
+            self.errorMessage = "Falha ao reverter pagamento."
+        }
+    }
+
     func updateOrderStatus(order: Order, action: OrderAction) async {
         guard let index = orders.firstIndex(where: { $0.id == order.id }) else { return }
         

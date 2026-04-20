@@ -63,8 +63,13 @@ struct ClientsView: View {
         } else {
             List {
                 ForEach(filteredClients) { client in
-                    ClientCard(client: client)
-                        .onTapGesture { selectedClient = client }
+                    ZStack {
+                        ClientCard(client: client)
+                        NavigationLink(destination: ClientDetailView(clientId: client.id)) {
+                            EmptyView()
+                        }
+                        .opacity(0)
+                    }
                         .listRowSeparator(.hidden)
                         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                         .listRowBackground(Color.clear)

@@ -8,14 +8,14 @@
 import Foundation
 
 class ProductService {
-    private let baseURL = "https://api-orders.deuxcerie.com.br/api/v1/"
+    private let baseURL = "https://deux-erp.deuxcerie.com.br/api/v1/"
 
     private var token: String? {
         KeychainService.load(forKey: "user_token")
     }
 
     func fetchProducts() async throws -> [ProductResponse] {
-        let request = try makeRequest(endpoint: "products/all", method: "GET")
+        let request = try makeRequest(endpoint: "products/all?size=100", method: "GET")
         let (data, response) = try await URLSession.shared.data(for: request)
         try validate(response: response)
         struct ProductsResponse: Decodable { let items: [ProductResponse] }
