@@ -307,7 +307,7 @@ extension EditOrderView {
               let unitPrice = Double(cleanedPrice),
               !selectedProductId.isEmpty,
               q > 0,
-              unitPrice > 0 else { return }
+              unitPrice >= 0 else { return }
 
         let unitPriceCents = Int(round(unitPrice * 100))
         newItems.append(OrderItemInput(

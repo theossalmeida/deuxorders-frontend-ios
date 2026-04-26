@@ -1,36 +1,107 @@
-//
-//  DeuxOrdersTests.swift
-//  DeuxOrdersTests
-//
-//  Created by Theo on 04/03/26.
-//
-
 import XCTest
 @testable import DeuxOrders
 
 final class DeuxOrdersTests: XCTestCase {
-
-    override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-    }
-
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
-    }
-
-    func testExample() throws {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // Any test you write for XCTest can be annotated as throws and async.
-        // Mark your test throws to produce an unexpected failure when your test encounters an uncaught error.
-        // Mark your test async to allow awaiting for asynchronous code to complete. Check the results with assertions afterwards.
-    }
-
-    func testPerformanceExample() throws {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
+    func testProductResponseDecodesIntegerCentPriceAndDefaultsRecipeFlag() throws {
+        let json = """
+        {
+          "id": "product-1",
+          "name": "Naked Cake",
+          "price": 2500,
+          "status": true,
+          "image": null,
+          "description": "Bolo",
+          "category": "Bolos",
+          "size": "M"
         }
+        """.data(using: .utf8)!
+
+        let product = try JSONDecoder().decode(ProductResponse.self, from: json)
+
+        XCTAssertEqual(product.price, 2500)
+        XCTAssertFalse(product.hasRecipe)
+        XCTAssertEqual(product.description, "Bolo")
+        XCTAssertEqual(product.size, "M")
     }
 
+    func testProductListDecodesPaginatedAndArrayShapes() throws {
+        let paginated = """
+        {
+          "items": [
+            { "id": "product-1", "name": "Bolo", "price": 1500, "status": true }
+          ],
+          "totalCount": 1,
+          "pageNumber": 1,
+          "pageSize": 100
+        }
+        """.data(using: .utf8)!
+
+        let array = """
+        [
+          { "id": "product-2", "name": "Cookie", "price": 900, "status": true }
+        ]
+        """.data(using: .utf8)!
+
+        XCTAssertEqual(try JSONDecoder().decode(ProductListResponse.self, from: paginated).items.first?.id, "product-1")
+        XCTAssertEqual(try JSONDecoder().decode(ProductListResponse.self, from: array).items.first?.id, "product-2")
+    }
+
+    func testOrderInputEncodesCanonicalDeliveryKey() throws {
+        let input = OrderInput(
+            clientId: "client-1",
+            deliveryDate: "2026-04-25T14:30:00Z",
+            deliveryAddress: "pickup",
+            items: [
+                OrderItemInput(
+                    productId: "product-1",
+                    quantity: 2,
+                    unitPrice: 0,
+                    observation: nil,
+                    massa: nil,
+                    sabor: nil
+                )
+            ],
+            references: ["order-references/ref.jpg"]
+        )
+
+        let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(input)) as? [String: Any]
+
+        XCTAssertEqual(object?["clientId"] as? String, "client-1")
+        XCTAssertEqual(object?["delivery"] as? String, "pickup")
+        XCTAssertNil(object?["deliveryAddress"])
+        XCTAssertEqual((object?["items"] as? [[String: Any]])?.first?["unitPrice"] as? Int, 0)
+    }
+
+    func testOrderDecodesDeliveryAndLegacyDeliveryAddress() throws {
+        let canonical = makeOrderJSON(deliveryField: "\"delivery\": \"pickup\"")
+        let legacy = makeOrderJSON(deliveryField: "\"deliveryAddress\": \"Rua X, 123\"")
+
+        XCTAssertEqual(try APIClient.dateDecoder.decode(Order.self, from: canonical).deliveryAddress, "pickup")
+        XCTAssertEqual(try APIClient.dateDecoder.decode(Order.self, from: legacy).deliveryAddress, "Rua X, 123")
+    }
+
+    func testMeasureUnitDecodesStringAndNumericAndEncodesNumeric() throws {
+        XCTAssertEqual(try JSONDecoder().decode(MeasureUnit.self, from: "\"G\"".data(using: .utf8)!), .g)
+        XCTAssertEqual(try JSONDecoder().decode(MeasureUnit.self, from: "1".data(using: .utf8)!), .ml)
+        XCTAssertEqual(String(data: try JSONEncoder().encode(MeasureUnit.u), encoding: .utf8), "3")
+    }
+
+    private func makeOrderJSON(deliveryField: String) -> Data {
+        """
+        {
+          "id": "order-1",
+          "deliveryDate": "2026-04-25T14:30:00Z",
+          "status": "Received",
+          "clientId": "client-1",
+          "clientName": "Maria",
+          "totalPaid": 0,
+          "totalValue": 0,
+          "items": [],
+          "references": [],
+          \(deliveryField),
+          "paidAt": null,
+          "paidByUserName": null
+        }
+        """.data(using: .utf8)!
+    }
 }

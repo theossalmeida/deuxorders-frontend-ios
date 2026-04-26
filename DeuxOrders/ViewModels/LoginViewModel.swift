@@ -10,10 +10,20 @@ class LoginViewModel: ObservableObject {
     @Published var isAuthenticated = false
     
     private let authService = AuthService()
+
+    init() {
+        isAuthenticated = KeychainService.load(forKey: AppEnvironment.tokenKey) != nil
+    }
     
     func login() async {
-        guard !email.isEmpty && !password.isEmpty else {
+        guard !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !password.isEmpty else {
             errorMessage = "Preencha todos os campos."
+            return
+        }
+
+        guard email.contains("@"), email.contains(".") else {
+            errorMessage = "Informe um email válido."
             return
         }
         

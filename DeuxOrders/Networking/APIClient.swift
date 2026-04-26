@@ -105,6 +105,9 @@ final class APIClient {
 
         guard (200...299).contains(httpResponse.statusCode) else {
             let message = String(data: data, encoding: .utf8)
+            if httpResponse.statusCode == 400 || httpResponse.statusCode == 422 {
+                throw APIError.validation(message ?? "Dados inválidos.")
+            }
             throw APIError.server(status: httpResponse.statusCode, message: message)
         }
 

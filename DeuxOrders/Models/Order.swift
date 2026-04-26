@@ -72,6 +72,39 @@ struct Order: Decodable, Identifiable {
     let paidAt: Date?
     let paidByUserName: String?
 
+    enum CodingKeys: String, CodingKey {
+        case id
+        case deliveryDate
+        case status
+        case clientId
+        case clientName
+        case totalPaid
+        case totalValue
+        case items
+        case references
+        case delivery
+        case deliveryAddress
+        case paidAt
+        case paidByUserName
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        deliveryDate = try container.decode(Date.self, forKey: .deliveryDate)
+        status = try container.decode(OrderStatus.self, forKey: .status)
+        clientId = try container.decode(String.self, forKey: .clientId)
+        clientName = try container.decode(String.self, forKey: .clientName)
+        totalPaid = try container.decode(Int.self, forKey: .totalPaid)
+        totalValue = try container.decode(Int.self, forKey: .totalValue)
+        items = try container.decode([OrderItem].self, forKey: .items)
+        references = try container.decodeIfPresent([String].self, forKey: .references)
+        deliveryAddress = try container.decodeIfPresent(String.self, forKey: .delivery)
+            ?? container.decodeIfPresent(String.self, forKey: .deliveryAddress)
+        paidAt = try container.decodeIfPresent(Date.self, forKey: .paidAt)
+        paidByUserName = try container.decodeIfPresent(String.self, forKey: .paidByUserName)
+    }
+
     var shortId: String {
         String(id.prefix(8)).uppercased()
     }
@@ -113,6 +146,23 @@ struct UpdateOrderRequest: Codable {
     let deliveryAddress: String?
     let items: [UpdateOrderItemRequest]?
     let references: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case deliveryDate
+        case status
+        case delivery = "delivery"
+        case items
+        case references
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(deliveryDate, forKey: .deliveryDate)
+        try container.encodeIfPresent(status, forKey: .status)
+        try container.encodeIfPresent(deliveryAddress, forKey: .delivery)
+        try container.encodeIfPresent(items, forKey: .items)
+        try container.encodeIfPresent(references, forKey: .references)
+    }
 }
 
 struct UpdateOrderItemRequest: Codable {

@@ -6,6 +6,25 @@ struct OrderInput: Codable {
     let deliveryAddress: String?
     let items: [OrderItemInput]
     let references: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case clientId
+        case deliveryDate
+        case delivery = "delivery"
+        case items
+        case references
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(clientId, forKey: .clientId)
+        try container.encode(deliveryDate, forKey: .deliveryDate)
+        if let deliveryAddress {
+            try container.encode(deliveryAddress, forKey: .delivery)
+        }
+        try container.encode(items, forKey: .items)
+        try container.encodeIfPresent(references, forKey: .references)
+    }
 }
 
 struct OrderItemInput: Codable, Identifiable {

@@ -115,7 +115,7 @@ struct NewOrderView: View {
               let unitPrice = Double(cleanedPrice),
               !state.selectedProductId.isEmpty,
               q > 0,
-              unitPrice > 0 else { return }
+              unitPrice >= 0 else { return }
 
         let unitPriceCents = Int(round(unitPrice * 100))
         state.items.append(OrderItemInput(

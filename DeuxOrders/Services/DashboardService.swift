@@ -24,8 +24,8 @@ class DashboardService {
     func exportOrders(from: Date, to: Date, status: OrderStatus?, format: String) async throws -> (Data, String) {
         let endOfDay = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: to) ?? to
         var params = [
-            "startDate=\(isoFormatter.string(from: from))",
-            "endDate=\(isoFormatter.string(from: endOfDay))",
+            "from=\(isoFormatter.string(from: from))",
+            "to=\(isoFormatter.string(from: endOfDay))",
             "format=\(format)"
         ]
         if let status { params.append("status=\(status.rawValue)") }
@@ -42,8 +42,8 @@ class DashboardService {
     private func buildEndpoint(_ path: String, start: Date, end: Date, extra: [String: String] = [:]) -> String {
         let endOfDay = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: end) ?? end
         var params = [
-            "startDate=\(isoFormatter.string(from: start))",
-            "endDate=\(isoFormatter.string(from: endOfDay))"
+            "createdAtFrom=\(isoFormatter.string(from: start))",
+            "createdAtTo=\(isoFormatter.string(from: endOfDay))"
         ]
         extra.forEach { params.append("\($0.key)=\($0.value)") }
         return path + "?\(params.joined(separator: "&"))"

@@ -302,7 +302,7 @@ struct EditProductView: View {
         self.viewModel = viewModel
         _name = State(initialValue: product.name)
         _description = State(initialValue: product.description ?? "")
-        let reais = product.price / 100.0
+        let reais = Double(product.price) / 100.0
         _priceString = State(initialValue: String(format: "%.2f", reais).replacingOccurrences(of: ".", with: ","))
         _category = State(initialValue: product.category ?? "")
         _size = State(initialValue: product.size ?? "")

@@ -171,7 +171,7 @@ struct AddItemFormSection: View {
                                 .foregroundColor(DSColor.foregroundSoft)
                         }
                         Spacer()
-                        Text(Formatters.brl(Int(product.price)))
+                        Text(Formatters.brl(product.price))
                             .font(DSFont.monoCaption)
                             .foregroundColor(DSColor.brand)
                     }
@@ -270,7 +270,7 @@ struct AddItemFormSection: View {
     private func autoFillUnitPrice(for productId: String) {
         guard !productId.isEmpty,
               let prod = allProducts.first(where: { $0.id == productId }) else { return }
-        itemUnitPrice = String(format: "%.2f", prod.price / 100.0)
+        itemUnitPrice = String(format: "%.2f", Double(prod.price) / 100.0)
     }
 
     private func productName(for id: String) -> String {

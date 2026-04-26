@@ -83,6 +83,7 @@ class OrderService {
     }
 
     func fetchProducts() async throws -> [ProductResponse] {
-        try await api.get("products/all?size=100&status=true")
+        let response: ProductListResponse = try await api.get("products/all?page=1&size=100&status=true")
+        return response.items
     }
 }

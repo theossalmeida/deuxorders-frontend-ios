@@ -297,26 +297,29 @@ struct ProductDetailView: View {
     private func startEditing() {
         editName = product.name
         editDescription = product.description ?? ""
-        editPrice = String(format: "%.2f", product.price).replacingOccurrences(of: ".", with: ",")
+        editPrice = String(format: "%.2f", Double(product.price) / 100.0).replacingOccurrences(of: ".", with: ",")
         editCategory = product.category ?? ""
         editSize = product.size ?? ""
         isEditing = true
     }
 
     private func saveChanges() async {
-        let priceValue = Double(editPrice.replacingOccurrences(of: ",", with: ".")) ?? product.price
+        let priceValue = Double(editPrice.replacingOccurrences(of: ",", with: "."))
+            ?? (Double(product.price) / 100.0)
+        let priceCents = Double(Int(round(priceValue * 100)))
         let _ = await viewModel.updateProduct(
             id: product.id,
             name: editName,
             description: editDescription,
-            price: priceValue,
+            price: priceCents,
             category: editCategory.isEmpty ? nil : editCategory,
             size: editSize.isEmpty ? nil : editSize
         )
         isEditing = false
     }
 
-    private func formatPrice(_ price: Double) -> String {
-        Formatters.currency.string(from: NSNumber(value: price / 100.0)) ?? "R$ 0,00"
+    private func formatPrice(_ price: Int) -> String {
+        Formatters.brl(price)
     }
 }
+

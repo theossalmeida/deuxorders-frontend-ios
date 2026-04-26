@@ -48,6 +48,32 @@ struct OrdersView: View {
             }
             .background(DSColor.background)
             .navigationTitle("Pedidos")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        NavigationLink {
+                            DashboardView(viewModel: DashboardViewModel())
+                        } label: {
+                            Label("Painel", systemImage: "chart.bar.xaxis")
+                        }
+
+                        NavigationLink {
+                            ProductsView()
+                        } label: {
+                            Label("Produtos", systemImage: "shippingbox.fill")
+                        }
+
+                        NavigationLink {
+                            ClientsView()
+                        } label: {
+                            Label("Clientes", systemImage: "person.2.fill")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .foregroundColor(DSColor.brand)
+                    }
+                }
+            }
             .sheet(isPresented: $showingNewOrderSheet) {
                 NewOrderView(viewModel: viewModel, state: newOrderState)
             }
