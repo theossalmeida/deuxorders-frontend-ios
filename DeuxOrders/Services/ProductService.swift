@@ -96,6 +96,10 @@ class ProductService {
     func fetchOrderOptions(productId: String) async throws -> ProductOrderOptionsResponse {
         try await api.get("products/\(productId)/order-options")
     }
+
+    func fetchStats(productId: String, month: String) async throws -> ProductStats {
+        try await api.get("products/\(productId)/stats?month=\(month)")
+    }
 }
 
 struct ProductListResponse: Decodable {

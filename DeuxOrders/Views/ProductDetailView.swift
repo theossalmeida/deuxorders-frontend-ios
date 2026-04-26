@@ -21,6 +21,7 @@ struct ProductDetailView: View {
     @State private var recipeOptions: [ProductRecipeOptionResponse] = []
     @State private var orderOptions: ProductOrderOptionsResponse = .fallback
     @State private var materials: [MaterialDropdownItem] = []
+    @State private var stats: ProductStats?
     @State private var isLoadingRecipe = false
     @State private var showBaseRecipeEditor = false
     @State private var recipeOptionToEdit: RecipeOptionEditorContext?
@@ -35,7 +36,6 @@ struct ProductDetailView: View {
                 // Product Info
                 productInfoCard
 
-                // Performance (placeholder)
                 performanceCard
 
                 // Price
@@ -203,7 +203,7 @@ struct ProductDetailView: View {
             DashboardSectionHeader(title: "DESEMPENHO")
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("—")
+                    Text("\(stats?.soldThisMonth ?? 0)")
                         .font(.title2)
                         .fontWeight(.bold)
                     Text("Unid. vendidas")
@@ -216,7 +216,7 @@ struct ProductDetailView: View {
                 .cornerRadius(8)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("—")
+                    Text(Formatters.brl(stats?.revenueThisMonth ?? 0))
                         .font(.title2)
                         .fontWeight(.bold)
                     Text("Receita")
@@ -490,15 +490,23 @@ struct ProductDetailView: View {
         async let optionsTask = try? viewModel.fetchRecipeOptions(productId: product.id)
         async let orderOptionsTask = viewModel.fetchOrderOptions(productId: product.id)
         async let materialsTask = try? InventoryService().fetchDropdown()
+        async let statsTask = try? viewModel.fetchStats(productId: product.id, month: currentMonth)
 
         recipe = await recipeTask
         recipeOptions = await optionsTask ?? []
         orderOptions = await orderOptionsTask
         materials = await materialsTask ?? []
+        stats = await statsTask
     }
 
     private func formatQuantity(_ quantity: Double) -> String {
         quantity.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(quantity)) : String(format: "%.1f", quantity)
+    }
+
+    private var currentMonth: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM"
+        return formatter.string(from: Date())
     }
 }
 

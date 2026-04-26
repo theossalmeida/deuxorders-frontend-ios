@@ -29,3 +29,8 @@ struct ProductResponse: Codable, Identifiable {
         self.hasRecipe = try container.decodeIfPresent(Bool.self, forKey: .hasRecipe) ?? false
     }
 }
+
+struct ProductStats: Decodable {
+    let soldThisMonth: Int
+    let revenueThisMonth: Int
+}

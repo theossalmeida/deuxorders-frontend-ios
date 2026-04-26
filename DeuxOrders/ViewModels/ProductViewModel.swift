@@ -162,6 +162,10 @@ class ProductsViewModel: ObservableObject {
             return .fallback
         }
     }
+
+    func fetchStats(productId: String, month: String) async throws -> ProductStats {
+        try await productService.fetchStats(productId: productId, month: month)
+    }
 }
 
 private extension String {
