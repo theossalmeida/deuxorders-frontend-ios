@@ -24,10 +24,9 @@ class CashService {
     }
 
     func fetchSummary(from: Date?, to: Date?) async throws -> CashFlowSummary {
-        let formatter = APIClient.isoWithoutFractional
         var params: [String] = []
-        if let from { params.append("from=\(formatter.string(from: from))") }
-        if let to { params.append("to=\(formatter.string(from: to))") }
+        if let from { params.append("from=\(Formatters.utcISOForStartOfLocalDay(from))") }
+        if let to { params.append("to=\(Formatters.utcISOForExclusiveEndOfLocalDay(to))") }
         let qs = params.isEmpty ? "" : "?\(params.joined(separator: "&"))"
         return try await api.get("cash/summary" + qs)
     }

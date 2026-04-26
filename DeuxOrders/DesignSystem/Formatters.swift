@@ -40,6 +40,16 @@ enum Formatters {
         return f.string(from: date)
     }
 
+    static func utcISOForStartOfLocalDay(_ date: Date) -> String {
+        iso8601.string(from: Calendar.current.startOfDay(for: date))
+    }
+
+    static func utcISOForExclusiveEndOfLocalDay(_ date: Date) -> String {
+        let start = Calendar.current.startOfDay(for: date)
+        let end = Calendar.current.date(byAdding: .day, value: 1, to: start) ?? start
+        return iso8601.string(from: end)
+    }
+
     /// Relative day label: "Hoje", "Amanhã", "Ontem", or short date
     static func relativeDay(_ date: Date) -> String {
         let cal = Calendar.current

@@ -2,30 +2,28 @@ import Foundation
 
 class DashboardService {
     private let api = APIClient.shared
-    private let isoFormatter = APIClient.isoWithoutFractional
 
     func fetchSummary(start: Date, end: Date) async throws -> DashboardSummary {
-        try await api.get(buildEndpoint("dashboard/summary", start: start, end: end), decoder: JSONDecoder())
+        try await api.get(buildEndpoint("dashboard/summary", start: start, end: end))
     }
 
     func fetchRevenueOverTime(start: Date, end: Date) async throws -> [RevenueDataPoint] {
-        let response: RevenueOverTimeResponse = try await api.get(buildEndpoint("dashboard/revenue-over-time", start: start, end: end), decoder: JSONDecoder())
+        let response: RevenueOverTimeResponse = try await api.get(buildEndpoint("dashboard/revenue-over-time", start: start, end: end))
         return response.dataPoints
     }
 
     func fetchTopProducts(start: Date, end: Date) async throws -> [TopProduct] {
-        try await api.get(buildEndpoint("dashboard/top-products", start: start, end: end, extra: ["limit": "5"]), decoder: JSONDecoder())
+        try await api.get(buildEndpoint("dashboard/top-products", start: start, end: end, extra: ["limit": "5"]))
     }
 
     func fetchTopClients(start: Date, end: Date) async throws -> [TopClient] {
-        try await api.get(buildEndpoint("dashboard/top-clients", start: start, end: end, extra: ["limit": "5"]), decoder: JSONDecoder())
+        try await api.get(buildEndpoint("dashboard/top-clients", start: start, end: end, extra: ["limit": "5"]))
     }
 
     func exportOrders(from: Date, to: Date, status: OrderStatus?, format: String) async throws -> (Data, String) {
-        let endOfDay = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: to) ?? to
         var params = [
-            "from=\(isoFormatter.string(from: from))",
-            "to=\(isoFormatter.string(from: endOfDay))",
+            "from=\(Formatters.utcISOForStartOfLocalDay(from))",
+            "to=\(Formatters.utcISOForExclusiveEndOfLocalDay(to))",
             "format=\(format)"
         ]
         if let status { params.append("status=\(status.rawValue)") }
@@ -40,10 +38,9 @@ class DashboardService {
     }
 
     private func buildEndpoint(_ path: String, start: Date, end: Date, extra: [String: String] = [:]) -> String {
-        let endOfDay = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: end) ?? end
         var params = [
-            "createdAtFrom=\(isoFormatter.string(from: start))",
-            "createdAtTo=\(isoFormatter.string(from: endOfDay))"
+            "createdAtFrom=\(Formatters.utcISOForStartOfLocalDay(start))",
+            "createdAtTo=\(Formatters.utcISOForExclusiveEndOfLocalDay(end))"
         ]
         extra.forEach { params.append("\($0.key)=\($0.value)") }
         return path + "?\(params.joined(separator: "&"))"

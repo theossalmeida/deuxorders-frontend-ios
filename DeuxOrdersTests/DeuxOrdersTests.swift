@@ -86,6 +86,45 @@ final class DeuxOrdersTests: XCTestCase {
         XCTAssertEqual(String(data: try JSONEncoder().encode(MeasureUnit.u), encoding: .utf8), "3")
     }
 
+    func testUpdateOrderResultDecodesWrappedWarnings() throws {
+        let json = """
+        {
+          "response": {
+            "id": "order-1",
+            "deliveryDate": "2026-04-25T14:30:00Z",
+            "status": "Preparing",
+            "clientId": "client-1",
+            "clientName": "Maria",
+            "totalPaid": 0,
+            "totalValue": 0,
+            "items": [],
+            "references": []
+          },
+          "warnings": ["Estoque insuficiente"]
+        }
+        """.data(using: .utf8)!
+
+        let result = try APIClient.dateDecoder.decode(UpdateOrderResult.self, from: json)
+
+        XCTAssertEqual(result.order.status, .preparing)
+        XCTAssertEqual(result.warnings, ["Estoque insuficiente"])
+    }
+
+    func testLocalDayBoundsUseStartAndExclusiveEnd() {
+        var components = DateComponents()
+        components.calendar = Calendar(identifier: .gregorian)
+        components.timeZone = TimeZone(identifier: "America/Sao_Paulo")
+        components.year = 2026
+        components.month = 4
+        components.day = 25
+        components.hour = 14
+        let date = components.date!
+
+        XCTAssertTrue(Formatters.utcISOForStartOfLocalDay(date).contains("T03:00:00Z"))
+        XCTAssertTrue(Formatters.utcISOForExclusiveEndOfLocalDay(date).contains("T03:00:00Z"))
+        XCTAssertNotEqual(Formatters.utcISOForStartOfLocalDay(date), Formatters.utcISOForExclusiveEndOfLocalDay(date))
+    }
+
     private func makeOrderJSON(deliveryField: String) -> Data {
         """
         {

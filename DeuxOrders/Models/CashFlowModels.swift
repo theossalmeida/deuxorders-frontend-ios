@@ -169,12 +169,9 @@ struct CashFlowFilters {
     var size: Int = 50
 
     func queryString() -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-
         var params: [String] = []
-        if let from = from { params.append("from=\(formatter.string(from: from))") }
-        if let to = to { params.append("to=\(formatter.string(from: to))") }
+        if let from = from { params.append("from=\(Formatters.utcISOForStartOfLocalDay(from))") }
+        if let to = to { params.append("to=\(Formatters.utcISOForExclusiveEndOfLocalDay(to))") }
         if let type = type { params.append("type=\(type.rawValue)") }
         if let category = category { params.append("category=\(category.rawValue)") }
         if let source = source { params.append("source=\(source.rawValue)") }

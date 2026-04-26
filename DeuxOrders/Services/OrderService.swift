@@ -34,7 +34,7 @@ class OrderService {
         try await api.post("orders/new", body: input)
     }
 
-    func updateOrder(id: String, input: UpdateOrderRequest) async throws {
+    func updateOrder(id: String, input: UpdateOrderRequest) async throws -> UpdateOrderResult {
         try await api.put("orders/\(id)", body: input)
     }
 

@@ -165,6 +165,29 @@ struct UpdateOrderRequest: Codable {
     }
 }
 
+struct UpdateOrderResult: Decodable {
+    let order: Order
+    let warnings: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case response
+        case warnings
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let order = try? container.decode(Order.self) {
+            self.order = order
+            self.warnings = []
+            return
+        }
+
+        let keyed = try decoder.container(keyedBy: CodingKeys.self)
+        self.order = try keyed.decode(Order.self, forKey: .response)
+        self.warnings = try keyed.decodeIfPresent([String].self, forKey: .warnings) ?? []
+    }
+}
+
 struct UpdateOrderItemRequest: Codable {
     let productId: String
     let quantity: Int?

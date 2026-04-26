@@ -382,7 +382,10 @@ extension EditOrderView {
                 items: itemsPayload.isEmpty ? nil : itemsPayload,
                 references: newObjectKeys.isEmpty ? nil : newObjectKeys
             )
-            try await viewModel.orderService.updateOrder(id: order.id, input: payload)
+            let result = try await viewModel.orderService.updateOrder(id: order.id, input: payload)
+            if !result.warnings.isEmpty {
+                viewModel.errorMessage = result.warnings.joined(separator: "\n")
+            }
             await viewModel.loadOrders()
             await MainActor.run { dismiss() }
         } catch {
