@@ -113,6 +113,55 @@ class ProductsViewModel: ObservableObject {
             self.errorMessage = "Falha ao comunicar ativação ao servidor."
         }
     }
+
+    func fetchRecipe(productId: String) async throws -> ProductRecipeResponse {
+        try await productService.fetchRecipe(productId: productId)
+    }
+
+    func updateRecipe(productId: String, items: [ProductRecipeItemInput]) async -> Bool {
+        do {
+            try await productService.updateRecipe(productId: productId, items: items)
+            await loadProducts()
+            return true
+        } catch {
+            errorMessage = "Falha ao salvar receita."
+            return false
+        }
+    }
+
+    func fetchRecipeOptions(productId: String) async throws -> [ProductRecipeOptionResponse] {
+        try await productService.fetchRecipeOptions(productId: productId)
+    }
+
+    func updateRecipeOption(
+        productId: String,
+        type: ProductRecipeOptionType,
+        name: String,
+        items: [ProductRecipeItemInput]
+    ) async -> Bool {
+        let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanedName.isEmpty else {
+            errorMessage = "Informe o nome da opcao."
+            return false
+        }
+
+        do {
+            _ = try await productService.updateRecipeOption(productId: productId, type: type, name: cleanedName, items: items)
+            await loadProducts()
+            return true
+        } catch {
+            errorMessage = "Falha ao salvar opcao de receita."
+            return false
+        }
+    }
+
+    func fetchOrderOptions(productId: String) async -> ProductOrderOptionsResponse {
+        do {
+            return try await productService.fetchOrderOptions(productId: productId)
+        } catch {
+            return .fallback
+        }
+    }
 }
 
 private extension String {

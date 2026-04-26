@@ -69,6 +69,33 @@ class ProductService {
     func deleteProductImage(id: String) async throws {
         try await api.delete("products/\(id)/image")
     }
+
+    func fetchRecipe(productId: String) async throws -> ProductRecipeResponse {
+        try await api.get("products/\(productId)/recipe")
+    }
+
+    func updateRecipe(productId: String, items: [ProductRecipeItemInput]) async throws {
+        try await api.put("products/\(productId)/recipe", body: UpdateProductRecipeRequest(items: items))
+    }
+
+    func fetchRecipeOptions(productId: String) async throws -> [ProductRecipeOptionResponse] {
+        let response: ProductRecipeOptionsResponse = try await api.get("products/\(productId)/recipe-options")
+        return response.options
+    }
+
+    func updateRecipeOption(
+        productId: String,
+        type: ProductRecipeOptionType,
+        name: String,
+        items: [ProductRecipeItemInput]
+    ) async throws -> ProductRecipeOptionResponse {
+        let request = UpdateProductRecipeOptionRequest(type: type, name: name, items: items)
+        return try await api.put("products/\(productId)/recipe-options", body: request)
+    }
+
+    func fetchOrderOptions(productId: String) async throws -> ProductOrderOptionsResponse {
+        try await api.get("products/\(productId)/order-options")
+    }
 }
 
 struct ProductListResponse: Decodable {
