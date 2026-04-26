@@ -69,47 +69,20 @@ struct ProductsView: View {
         } else if filteredProducts.isEmpty {
             ContentUnavailableView("Nenhum produto encontrado", systemImage: "shippingbox.fill")
         } else {
-            List {
-                ForEach(filteredProducts) { product in
-                    ZStack {
-                        ProductCard(product: product)
-                        NavigationLink(destination: ProductDetailView(product: product, viewModel: viewModel)) {
-                            EmptyView()
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 156), spacing: 12)], spacing: 12) {
+                    ForEach(filteredProducts) { product in
+                        NavigationLink {
+                            ProductDetailView(product: product, viewModel: viewModel)
+                        } label: {
+                            ProductCard(product: product)
                         }
-                        .opacity(0)
+                        .buttonStyle(.plain)
                     }
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                        .listRowBackground(Color.clear)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {
-                                Task { await viewModel.deleteProduct(id: product.id) }
-                            } label: {
-                                Label("Excluir", systemImage: "trash.fill")
-                            }
-                        }
-                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                            if product.status {
-                                Button {
-                                    Task { await viewModel.deactivateProduct(id: product.id) }
-                                } label: {
-                                    Label("Desativar", systemImage: "xmark.bin.fill")
-                                }
-                                .tint(.orange)
-                            } else {
-                                Button {
-                                    Task { await viewModel.activateProduct(id: product.id) }
-                                } label: {
-                                    Label("Ativar", systemImage: "checkmark.circle.fill")
-                                }
-                                .tint(.green)
-                            }
-                        }
                 }
+                .padding(16)
             }
-            .listStyle(.plain)
-            .background(Color(uiColor: .systemGroupedBackground))
-            .scrollContentBackground(.hidden)
+            .background(DSColor.background)
             .refreshable { await viewModel.loadProducts() }
         }
     }
@@ -456,24 +429,27 @@ struct ProductCard: View {
     let product: ProductResponse
 
     private var formattedPrice: String {
-        let reaisValue = Double(product.price) / 100.0
-        return reaisValue.formatted(.currency(code: "BRL").locale(Locale(identifier: "pt_BR")))
+        Formatters.brl(product.price)
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            if let imageURL = product.image, let url = URL(string: imageURL) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        Color(uiColor: .tertiarySystemFill)
-                    }
+        VStack(alignment: .leading, spacing: 10) {
+            ZStack(alignment: .topTrailing) {
+                productImage
+                    .aspectRatio(1, contentMode: .fill)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                    .cornerRadius(10)
+
+                if product.hasRecipe {
+                    Image(systemName: "list.bullet.clipboard.fill")
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .padding(6)
+                        .background(DSColor.brand)
+                        .clipShape(Circle())
+                        .padding(6)
                 }
-                .frame(width: 56, height: 56)
-                .cornerRadius(8)
-                .clipped()
             }
 
             VStack(alignment: .leading, spacing: 8) {
@@ -493,6 +469,7 @@ struct ProductCard: View {
                             .cornerRadius(6)
                     }
                 }
+                .lineLimit(2)
 
                 HStack(spacing: 6) {
                     if let category = product.category, !category.isEmpty {
@@ -523,19 +500,41 @@ struct ProductCard: View {
                         .foregroundColor(.secondary)
                         .lineLimit(2)
                 }
+
+                Text(formattedPrice)
+                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                    .foregroundColor(DSColor.brand)
             }
-
-            Spacer()
-
-            Text(formattedPrice)
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(.secondary)
         }
-        .padding()
+        .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(uiColor: .secondarySystemGroupedBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+    }
+
+    @ViewBuilder
+    private var productImage: some View {
+        if let imageURL = product.image, let url = URL(string: imageURL) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                default:
+                    fallbackImage
+                }
+            }
+        } else {
+            fallbackImage
+        }
+    }
+
+    private var fallbackImage: some View {
+        ZStack {
+            DSColor.brandSoft
+            Image(systemName: "shippingbox.fill")
+                .font(.title2)
+                .foregroundColor(DSColor.brand)
+        }
     }
 }
