@@ -13,6 +13,7 @@ struct OrderDetailView: View {
     @State private var showUnpayAlert = false
     @State private var unpayReason = ""
     @State private var showCancelAlert = false
+    private var isAdmin: Bool { AppSession.isAdministrator }
 
 
     var body: some View {
@@ -382,7 +383,7 @@ struct OrderDetailView: View {
             }
 
             // Payment actions
-            if order.status == .completed && !order.isPaid {
+            if isAdmin && order.status == .completed && !order.isPaid {
                 Button {
                     Task { await viewModel.markAsPaid(order: order) }
                 } label: {
@@ -400,7 +401,7 @@ struct OrderDetailView: View {
                 }
             }
 
-            if order.isPaid {
+            if isAdmin && order.isPaid {
                 Button {
                     unpayReason = ""
                     showUnpayAlert = true

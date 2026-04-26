@@ -25,6 +25,7 @@ struct ProductDetailView: View {
     @State private var isLoadingRecipe = false
     @State private var showBaseRecipeEditor = false
     @State private var recipeOptionToEdit: RecipeOptionEditorContext?
+    private var isAdmin: Bool { AppSession.isAdministrator }
 
 
     var body: some View {
@@ -47,7 +48,9 @@ struct ProductDetailView: View {
                 statusSection
 
                 // Delete
-                deleteSection
+                if isAdmin {
+                    deleteSection
+                }
             }
             .padding()
         }

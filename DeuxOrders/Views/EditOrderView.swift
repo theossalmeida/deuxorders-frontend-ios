@@ -39,6 +39,7 @@ struct EditOrderView: View {
     @State private var isDeleting = false
     @State private var showDeleteConfirmation = false
     @State private var isUpdating = false
+    private var isAdmin: Bool { AppSession.isAdministrator }
 
     struct EditedItem {
         var quantity: Int
@@ -117,7 +118,9 @@ struct EditOrderView: View {
                 onDelete: { newItems.remove(atOffsets: $0) }
             )
             OrderTotalSection(totalOrderValue: totalOrderValue)
-            deleteSection
+            if isAdmin {
+                deleteSection
+            }
         }
         .navigationTitle("Editar Pedido")
         .navigationBarTitleDisplayMode(.inline)
