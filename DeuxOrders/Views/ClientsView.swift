@@ -11,7 +11,7 @@ struct ClientsView: View {
     @StateObject private var viewModel = ClientsViewModel()
 
     @State private var searchText = ""
-    @State private var showActiveOnly = true
+    @State private var statusFilter: Bool? = true
     @State private var showAddClientSheet = false
     @State private var selectedClient: Client?
 
@@ -19,7 +19,7 @@ struct ClientsView: View {
     var filteredClients: [Client] {
         viewModel.clients.filter { client in
             let searchMatch = searchText.isEmpty || client.name.localizedCaseInsensitiveContains(searchText)
-            let statusMatch = client.status == showActiveOnly
+            let statusMatch = statusFilter == nil || client.status == statusFilter
             return searchMatch && statusMatch
         }
     }
@@ -121,9 +121,10 @@ private extension ClientsView {
             .cornerRadius(8)
 
             Menu {
-                Picker("Status", selection: $showActiveOnly) {
-                    Text("Ativos").tag(true)
-                    Text("Inativos").tag(false)
+                Picker("Status", selection: $statusFilter) {
+                    Text("Todos").tag(Bool?.none)
+                    Text("Ativos").tag(Bool?.some(true))
+                    Text("Inativos").tag(Bool?.some(false))
                 }
             } label: {
                 Image(systemName: "line.3.horizontal.decrease.circle")

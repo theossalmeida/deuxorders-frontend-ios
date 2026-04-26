@@ -13,7 +13,7 @@ struct ProductsView: View {
     @StateObject private var viewModel = ProductsViewModel()
 
     @State private var searchText = ""
-    @State private var showActiveOnly = true
+    @State private var statusFilter: Bool? = true
     @State private var selectedCategory: String? = nil
     @State private var showAddProductSheet = false
     @State private var selectedProduct: ProductResponse?
@@ -27,7 +27,7 @@ struct ProductsView: View {
     var filteredProducts: [ProductResponse] {
         viewModel.products.filter { product in
             let searchMatch = searchText.isEmpty || product.name.localizedCaseInsensitiveContains(searchText)
-            let statusMatch = product.status == showActiveOnly
+            let statusMatch = statusFilter == nil || product.status == statusFilter
             let categoryMatch = selectedCategory == nil || product.category == selectedCategory
             return searchMatch && statusMatch && categoryMatch
         }
@@ -103,9 +103,10 @@ private extension ProductsView {
             .cornerRadius(8)
 
             Menu {
-                Picker("Status", selection: $showActiveOnly) {
-                    Text("Ativos").tag(true)
-                    Text("Inativos").tag(false)
+                Picker("Status", selection: $statusFilter) {
+                    Text("Todos").tag(Bool?.none)
+                    Text("Ativos").tag(Bool?.some(true))
+                    Text("Inativos").tag(Bool?.some(false))
                 }
                 if !availableCategories.isEmpty {
                     Divider()
