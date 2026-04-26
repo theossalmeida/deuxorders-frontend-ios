@@ -1,6 +1,11 @@
 import Foundation
 
 enum AppSession {
+    static func logout() {
+        KeychainService.delete(forKey: AppEnvironment.tokenKey)
+        NotificationCenter.default.post(name: .sessionExpired, object: nil)
+    }
+
     static var isAdministrator: Bool {
         guard let token = KeychainService.load(forKey: AppEnvironment.tokenKey),
               let payload = decodeJWTPayload(token) else {

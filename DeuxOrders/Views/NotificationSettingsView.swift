@@ -85,6 +85,14 @@ struct NotificationSettingsView: View {
             } footer: {
                 Text("Os lembretes são locais e usam os pedidos já carregados no app. Nenhum endpoint de Web Push é usado no iOS.")
             }
+
+            Section {
+                Button(role: .destructive) {
+                    AppSession.logout()
+                } label: {
+                    Label("Sair", systemImage: "rectangle.portrait.and.arrow.right")
+                }
+            }
         }
         .navigationTitle("Notificações")
         .task { await refreshStatus() }
