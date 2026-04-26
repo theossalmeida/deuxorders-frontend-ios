@@ -266,7 +266,7 @@ struct EditClientView: View {
     private func submit() {
         isSubmitting = true
         Task {
-            let success = await viewModel.updateClient(id: client.id, name: name, mobile: mobile)
+            let success = await viewModel.updateClient(id: client.id, name: name, mobile: mobile, status: client.status)
             isSubmitting = false
             if success { dismiss() }
         }

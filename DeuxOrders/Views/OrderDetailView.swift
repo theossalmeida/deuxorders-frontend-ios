@@ -383,7 +383,7 @@ struct OrderDetailView: View {
             }
 
             // Payment actions
-            if isAdmin && order.status == .completed && !order.isPaid {
+            if isAdmin && !order.isPaid {
                 Button {
                     Task { await viewModel.markAsPaid(order: order) }
                 } label: {

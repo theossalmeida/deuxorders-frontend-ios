@@ -44,7 +44,7 @@ struct Client: Codable, Identifiable {
 struct ClientStats: Decodable {
     let totalOrders: Int
     let totalSpent: Int
-    let lastOrderDate: String?
+    let lastOrderDate: Date?
 
     enum CodingKeys: String, CodingKey {
         case totalOrders, totalSpent, lastOrderDate

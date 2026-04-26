@@ -52,12 +52,12 @@ class ClientsViewModel: ObservableObject {
         }
     }
     
-    func updateClient(id: String, name: String, mobile: String) async -> Bool {
+    func updateClient(id: String, name: String, mobile: String, status: Bool? = nil) async -> Bool {
         let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanedMobile = mobile.trimmingCharacters(in: .whitespacesAndNewlines)
         let finalMobile = cleanedMobile.isEmpty ? nil : cleanedMobile
 
-        let input = ClientInput(name: cleanedName, mobile: finalMobile)
+        let input = ClientInput(name: cleanedName, mobile: finalMobile, status: status)
 
         do {
             try await clientService.updateClient(id: id, input: input)

@@ -53,7 +53,7 @@ struct ClientDetailView: View {
             kpiCard(title: "Pedidos", value: "\(stats.totalOrders)", icon: "cart.fill", color: .blue)
             kpiCard(title: "Total gasto", value: formatCurrency(stats.totalSpent), icon: "banknote.fill", color: .green)
             kpiCard(title: "Ticket médio", value: formatCurrency(stats.totalOrders > 0 ? stats.totalSpent / stats.totalOrders : 0), icon: "chart.line.uptrend.xyaxis", color: DSColor.brand)
-            kpiCard(title: "Último pedido", value: stats.lastOrderDate ?? "—", icon: "calendar", color: .orange)
+            kpiCard(title: "Último pedido", value: stats.lastOrderDate.map(formatOrderDate) ?? "—", icon: "calendar", color: .orange)
         }
     }
 
