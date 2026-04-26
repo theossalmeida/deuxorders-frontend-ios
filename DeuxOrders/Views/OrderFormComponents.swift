@@ -36,6 +36,28 @@ enum RecipeOptionCategory {
         }
     }
     var allowsMultipleSabor: Bool { self == .cake }
+
+    var massaOptions: [String] {
+        switch self {
+        case .cake:
+            return ["Baunilha", "Red Velvet", "Chocolate", "Limao", "Caramelo"]
+        case .brigadeiro, .cookie, .none:
+            return []
+        }
+    }
+
+    var saborOptions: [String] {
+        switch self {
+        case .cake:
+            return ["brulee", "branco", "doce de leite", "limao", "beijinho", "chocolate", "cream cheese frosting"]
+        case .brigadeiro:
+            return ["chocolate", "brulee", "beijinho", "limao", "churros", "casadinho"]
+        case .cookie:
+            return ["churros", "cacau", "tradicional", "brookie", "caramelo salgado"]
+        case .none:
+            return []
+        }
+    }
 }
 
 // MARK: - Basic Info Section
@@ -128,7 +150,9 @@ struct AddItemFormSection: View {
     private var canAddItem: Bool {
         !selectedProductId.isEmpty &&
         (Int(quantity) ?? 0) > 0 &&
-        (Double(itemUnitPrice.replacingOccurrences(of: ",", with: ".")) ?? -1) >= 0
+        (Double(itemUnitPrice.replacingOccurrences(of: ",", with: ".")) ?? -1) >= 0 &&
+        (!recipeCategory.requiresMassa || !itemMassa.isEmpty) &&
+        (!recipeCategory.requiresSabor || !itemSabor.isEmpty)
     }
 
     var body: some View {
@@ -195,17 +219,25 @@ struct AddItemFormSection: View {
 
                 // Recipe option pickers (conditional)
                 if recipeCategory.requiresMassa {
-                    TextField("Massa", text: $itemMassa)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($isInputActive)
+                    Picker("Massa", selection: $itemMassa) {
+                        Text("Selecione a massa").tag("")
+                        ForEach(recipeCategory.massaOptions, id: \.self) { option in
+                            Text(option).tag(option)
+                        }
+                    }
+                    .pickerStyle(.menu)
                 }
 
                 if recipeCategory.requiresSabor {
-                    TextField(recipeCategory.saborLabel, text: $itemSabor)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($isInputActive)
+                    Picker(recipeCategory.saborLabel, selection: $itemSabor) {
+                        Text("Selecione").tag("")
+                        ForEach(recipeCategory.saborOptions, id: \.self) { option in
+                            Text(option).tag(option)
+                        }
+                    }
+                    .pickerStyle(.menu)
                     if recipeCategory.allowsMultipleSabor {
-                        Text("Separe recheios com | (ex: brulee|chocolate)")
+                        Text("Para dois recheios, edite o pedido e separe com | se necessário.")
                             .font(.caption2)
                             .foregroundColor(DSColor.foregroundSoft)
                     }
