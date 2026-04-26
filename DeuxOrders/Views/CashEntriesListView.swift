@@ -11,6 +11,19 @@ struct CashEntriesListView: View {
     @State private var deleteReason = ""
     @State private var entryToDelete: CashFlowEntry?
 
+    private var groupedEntries: [(date: Date, entries: [CashFlowEntry])] {
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: viewModel.filteredEntries) { entry in
+            calendar.startOfDay(for: entry.billingDate)
+        }
+        return grouped.map { date, entries in
+            (
+                date: date,
+                entries: entries.sorted { $0.billingDate > $1.billingDate }
+            )
+        }
+        .sorted { $0.date > $1.date }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -69,18 +82,24 @@ struct CashEntriesListView: View {
                 Spacer()
             } else {
                 List {
-                    ForEach(viewModel.filteredEntries) { entry in
-                        NavigationLink(destination: CashEntryDetailView(entry: entry, viewModel: viewModel)) {
-                            CashEntryRowView(entry: entry)
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {
-                                entryToDelete = entry
-                                deleteReason = ""
-                                showDeleteAlert = true
-                            } label: {
-                                Label("Excluir", systemImage: "trash")
+                    ForEach(groupedEntries, id: \.date) { group in
+                        Section {
+                            ForEach(group.entries) { entry in
+                                NavigationLink(destination: CashEntryDetailView(entry: entry, viewModel: viewModel)) {
+                                    CashEntryRowView(entry: entry)
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        entryToDelete = entry
+                                        deleteReason = ""
+                                        showDeleteAlert = true
+                                    } label: {
+                                        Label("Excluir", systemImage: "trash")
+                                    }
+                                }
                             }
+                        } header: {
+                            dayHeader(date: group.date, entries: group.entries)
                         }
                     }
                 }
@@ -112,6 +131,29 @@ struct CashEntriesListView: View {
         }
     }
 
+    private func dayHeader(date: Date, entries: [CashFlowEntry]) -> some View {
+        let net = entries.reduce(0) { total, entry in
+            total + (entry.type == .inflow ? entry.amountCents : -entry.amountCents)
+        }
+
+        return HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Formatters.relativeDay(date))
+                    .font(.caption.weight(.bold))
+                    .foregroundColor(DSColor.foreground)
+                Text("\(entries.count) lançamento\(entries.count == 1 ? "" : "s")")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+            Text(signedCurrency(net))
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundColor(net >= 0 ? DSColor.ok : DSColor.destructive)
+        }
+        .padding(.vertical, 6)
+        .textCase(nil)
+    }
+
     private func summaryBand(_ summary: CashFlowSummary) -> some View {
         HStack(spacing: 0) {
             summaryItem(label: "Entradas", cents: summary.totalInflowCents, color: .green)
@@ -135,5 +177,11 @@ struct CashEntriesListView: View {
                 .foregroundColor(color)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private func signedCurrency(_ cents: Int) -> String {
+        let sign = cents >= 0 ? "+" : "-"
+        let amount = Formatters.brl(abs(cents))
+        return "\(sign)\(amount)"
     }
 }
