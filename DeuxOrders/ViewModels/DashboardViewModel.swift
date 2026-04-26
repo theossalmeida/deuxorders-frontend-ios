@@ -1,30 +1,6 @@
 import Foundation
 import Combine
 
-enum DateRangePreset: String, CaseIterable {
-    case today = "Hoje"
-    case week = "Semana"
-    case month = "Mês"
-    case custom = "Período"
-
-    func dates() -> (start: Date, end: Date)? {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        switch self {
-        case .today:
-            return (today, today)
-        case .week:
-            guard let start = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)) else { return nil }
-            return (start, today)
-        case .month:
-            guard let start = calendar.date(from: calendar.dateComponents([.year, .month], from: today)) else { return nil }
-            return (start, today)
-        case .custom:
-            return nil
-        }
-    }
-}
-
 @MainActor
 class DashboardViewModel: ObservableObject {
     @Published var summary: DashboardSummary?

@@ -12,8 +12,6 @@ struct MainTabView: View {
     @StateObject private var dashboardVM = DashboardViewModel()
     @StateObject private var cashFlowVM = CashFlowViewModel()
 
-    private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
-
     var body: some View {
         TabView {
             DashboardView(viewModel: dashboardVM)
@@ -43,6 +41,6 @@ struct MainTabView: View {
                     Label("Clientes", systemImage: "person.2.fill")
                 }
         }
-        .accentColor(brandColor)
+        .accentColor(DSColor.brand)
     }
 }

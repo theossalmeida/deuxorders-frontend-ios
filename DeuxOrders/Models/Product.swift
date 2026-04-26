@@ -1,8 +1,3 @@
-//
-//  Product.swift
-//  DeuxOrders
-//
-
 import Foundation
 
 struct ProductResponse: Codable, Identifiable {
@@ -14,12 +9,7 @@ struct ProductResponse: Codable, Identifiable {
     let image: String?
     let category: String?
     let size: String?
-
-    enum CodingKeys: String, CodingKey {
-        case id, name, price, status, image, category
-        case description = "descricao"
-        case size = "tamanho"
-    }
+    let hasRecipe: Bool?
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -31,11 +21,6 @@ struct ProductResponse: Codable, Identifiable {
         self.image = try container.decodeIfPresent(String.self, forKey: .image)
         self.category = try container.decodeIfPresent(String.self, forKey: .category)
         self.size = try container.decodeIfPresent(String.self, forKey: .size)
+        self.hasRecipe = try container.decodeIfPresent(Bool.self, forKey: .hasRecipe)
     }
-}
-
-struct ProductInput: Codable {
-    let name: String
-    let descricao: String?
-    let price: Double
 }

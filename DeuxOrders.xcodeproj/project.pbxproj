@@ -27,6 +27,7 @@
 		E44A97D12F58D26A003D5FD3 /* DeuxOrders.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeuxOrders.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E44A97DE2F58D26E003D5FD3 /* DeuxOrdersTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeuxOrdersTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E44A97E82F58D26E003D5FD3 /* DeuxOrdersUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeuxOrdersUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		59F221D586A94835AEBA37D5 /* Formatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatters.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -249,6 +250,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				950E2317566B43F991DC70BC /* Formatters.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

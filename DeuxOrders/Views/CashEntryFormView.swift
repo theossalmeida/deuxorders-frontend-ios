@@ -19,7 +19,6 @@ struct CashEntryFormView: View {
     @State private var notes: String = ""
     @State private var isSaving = false
 
-    private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 
     private var isEditing: Bool { editingEntry != nil }
 
@@ -55,7 +54,7 @@ struct CashEntryFormView: View {
                 }
                 .disabled(!isValid || isSaving)
                 .fontWeight(.semibold)
-                .foregroundColor(brandColor)
+                .foregroundColor(DSColor.brand)
             }
         }
         .onAppear { populateFromEntry() }

@@ -5,7 +5,6 @@ struct DashboardView: View {
     @ObservedObject var viewModel: DashboardViewModel
     @State private var showExportOptions = false
 
-    private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 
     var body: some View {
         NavigationStack {
@@ -92,7 +91,7 @@ private extension DashboardView {
                     } else {
                         Image(systemName: "square.and.arrow.up")
                             .font(.title2)
-                            .foregroundColor(brandColor)
+                            .foregroundColor(DSColor.brand)
                     }
                 }
                 .disabled(viewModel.isExporting)
@@ -109,7 +108,7 @@ private extension DashboardView {
                     DatePicker("Até", selection: $viewModel.endDate, in: viewModel.startDate..., displayedComponents: .date)
                     Button("Aplicar") { Task { await viewModel.loadAll() } }
                         .buttonStyle(.borderedProminent)
-                        .tint(brandColor)
+                        .tint(DSColor.brand)
                 }
                 .padding()
                 .background(Color(uiColor: .secondarySystemBackground))
@@ -129,7 +128,7 @@ private extension DashboardView {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 MetricCard(title: "Receita", value: formatCurrency(summary.totalRevenue), icon: "banknote.fill", color: .green)
                 MetricCard(title: "Pedidos", value: "\(summary.totalOrders)", icon: "cart.fill", color: .blue)
-                MetricCard(title: "Ticket Médio", value: formatCurrency(summary.averageRevenuePerOrder), icon: "chart.line.uptrend.xyaxis", color: brandColor)
+                MetricCard(title: "Ticket Médio", value: formatCurrency(summary.averageRevenuePerOrder), icon: "chart.line.uptrend.xyaxis", color: DSColor.brand)
                 MetricCard(title: "Descontos", value: formatCurrency(summary.totalDiscount), icon: "tag.fill", color: .orange)
             }
         }
@@ -167,7 +166,7 @@ private extension DashboardView {
                     x: .value("Data", point.parsedDate, unit: .day),
                     y: .value("Receita", Double(point.revenue) / 100.0)
                 )
-                .foregroundStyle(brandColor)
+                .foregroundStyle(DSColor.brand)
             }
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 5)) {
@@ -212,13 +211,13 @@ private extension DashboardView {
                             Text(formatCurrency(product.totalRevenue))
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
-                                .foregroundColor(brandColor)
+                                .foregroundColor(DSColor.brand)
                         }
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 4).fill(brandColor.opacity(0.15))
+                                RoundedRectangle(cornerRadius: 4).fill(DSColor.brand.opacity(0.15))
                                 RoundedRectangle(cornerRadius: 4)
-                                    .fill(brandColor)
+                                    .fill(DSColor.brand)
                                     .frame(width: geo.size.width * (Double(product.totalRevenue) / Double(maxRevenue)))
                             }
                         }
@@ -256,7 +255,7 @@ private extension DashboardView {
                             .fontWeight(.bold)
                             .foregroundColor(.white)
                             .frame(width: 22, height: 22)
-                            .background(brandColor)
+                            .background(DSColor.brand)
                             .clipShape(Circle())
 
                         VStack(alignment: .leading, spacing: 2) {
@@ -270,7 +269,7 @@ private extension DashboardView {
 
                         Text(formatCurrency(client.totalRevenue))
                             .fontWeight(.semibold)
-                            .foregroundColor(brandColor)
+                            .foregroundColor(DSColor.brand)
                     }
                     .padding(.vertical, 10)
                     .padding(.horizontal)

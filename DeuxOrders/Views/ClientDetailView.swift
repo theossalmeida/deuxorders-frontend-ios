@@ -13,7 +13,6 @@ struct ClientDetailView: View {
     @State private var errorMessage: String?
 
     private let service = ClientService()
-    private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 
     var body: some View {
         ScrollView {
@@ -36,7 +35,7 @@ struct ClientDetailView: View {
                 VStack(spacing: 16) {
                     kpiBand(client.stats)
                     contactCard(client)
-                    ordersHistorySection(client.orders)
+                    ordersHistorySection(client.orders.items)
                 }
                 .padding()
             }
@@ -52,8 +51,8 @@ struct ClientDetailView: View {
     private func kpiBand(_ stats: ClientStats) -> some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
             kpiCard(title: "Pedidos", value: "\(stats.totalOrders)", icon: "cart.fill", color: .blue)
-            kpiCard(title: "Total gasto", value: formatCurrency(stats.totalSpentCents), icon: "banknote.fill", color: .green)
-            kpiCard(title: "Ticket médio", value: formatCurrency(stats.totalOrders > 0 ? stats.totalSpentCents / stats.totalOrders : 0), icon: "chart.line.uptrend.xyaxis", color: brandColor)
+            kpiCard(title: "Total gasto", value: formatCurrency(stats.totalSpent), icon: "banknote.fill", color: .green)
+            kpiCard(title: "Ticket médio", value: formatCurrency(stats.totalOrders > 0 ? stats.totalSpent / stats.totalOrders : 0), icon: "chart.line.uptrend.xyaxis", color: DSColor.brand)
             kpiCard(title: "Último pedido", value: stats.lastOrderDate ?? "—", icon: "calendar", color: .orange)
         }
     }
@@ -89,7 +88,7 @@ struct ClientDetailView: View {
                     .fontWeight(.bold)
                     .foregroundColor(.white)
                     .frame(width: 40, height: 40)
-                    .background(brandColor)
+                    .background(DSColor.brand)
                     .clipShape(Circle())
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -119,7 +118,7 @@ struct ClientDetailView: View {
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "phone.fill")
-                            .foregroundColor(brandColor)
+                            .foregroundColor(DSColor.brand)
                             .frame(width: 40)
                         Text(mobile)
                             .font(.subheadline)
@@ -169,10 +168,10 @@ struct ClientDetailView: View {
 
                             Spacer()
 
-                            Text(formatCurrency(order.totalPaidCents))
+                            Text(formatCurrency(order.totalPaid))
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
-                                .foregroundColor(brandColor)
+                                .foregroundColor(DSColor.brand)
                         }
                         .padding(.vertical, 10)
                         .padding(.horizontal)

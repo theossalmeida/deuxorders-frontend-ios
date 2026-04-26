@@ -76,7 +76,7 @@ struct EditOrderView: View {
             let price = editedItems[item.productId]?.paidUnitPrice ?? item.paidUnitPrice
             return total + (price * qty)
         }
-        let newTotal = newItems.reduce(0) { $0 + ($1.unitprice * $1.quantity) }
+        let newTotal = newItems.reduce(0) { $0 + ($1.unitPrice * $1.quantity) }
         return Double(existingTotal + newTotal) / 100.0
     }
 
@@ -310,9 +310,9 @@ extension EditOrderView {
 
         let unitPriceCents = Int(round(unitPrice * 100))
         newItems.append(OrderItemInput(
-            productid: selectedProductId,
+            productId: selectedProductId,
             quantity: q,
-            unitprice: unitPriceCents,
+            unitPrice: unitPriceCents,
             observation: itemObservation.isEmpty ? nil : itemObservation,
             massa: itemMassa.isEmpty ? nil : itemMassa,
             sabor: itemSabor.isEmpty ? nil : itemSabor
@@ -360,9 +360,9 @@ extension EditOrderView {
 
         let newItemsPayload: [UpdateOrderItemRequest] = newItems.map { item in
             UpdateOrderItemRequest(
-                productId: item.productid,
+                productId: item.productId,
                 quantity: item.quantity,
-                paidUnitPrice: item.unitprice,
+                paidUnitPrice: item.unitPrice,
                 observation: item.observation,
                 massa: item.massa,
                 sabor: item.sabor

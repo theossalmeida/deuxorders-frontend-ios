@@ -45,9 +45,9 @@ class OrdersViewModel: ObservableObject {
         } catch let DecodingError.valueNotFound(type, context) {
             print("🚨 ERRO DE PARSING: Valor nulo encontrado onde era esperado \(type). Path: \(context.codingPath)")
             self.errorMessage = "Erro interno: Valor nulo inesperado."
-        } catch let error as NetworkError {
-            print("🚨 ERRO DE REDE: \(error)")
-            self.errorMessage = "Falha de conexão com o servidor."
+        } catch let error as APIError {
+            print("🚨 ERRO DE API: \(error)")
+            self.errorMessage = error.localizedDescription
         } catch is CancellationError {
             return
         } catch let error as URLError {

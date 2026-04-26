@@ -8,19 +8,6 @@
 import SwiftUI
 import Combine
 
-enum Formatters {
-    static let currency: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.locale = Locale(identifier: "pt_BR")
-        return formatter
-    }()
-
-    static let iso8601: ISO8601DateFormatter = {
-        return ISO8601DateFormatter()
-    }()
-}
-
 @MainActor
 final class NewOrderState: ObservableObject {
     @Published var selectedClientId: String = ""
@@ -60,7 +47,7 @@ struct NewOrderView: View {
     @State private var allProducts: [ProductResponse] = []
 
     private var totalOrderValue: Double {
-        let totalCents = state.items.reduce(0) { $0 + ($1.unitprice * $1.quantity) }
+        let totalCents = state.items.reduce(0) { $0 + ($1.unitPrice * $1.quantity) }
         return Double(totalCents) / 100.0
     }
 
@@ -132,9 +119,9 @@ struct NewOrderView: View {
 
         let unitPriceCents = Int(round(unitPrice * 100))
         state.items.append(OrderItemInput(
-            productid: state.selectedProductId,
+            productId: state.selectedProductId,
             quantity: q,
-            unitprice: unitPriceCents,
+            unitPrice: unitPriceCents,
             observation: state.itemObservation.isEmpty ? nil : state.itemObservation,
             massa: state.itemMassa.isEmpty ? nil : state.itemMassa,
             sabor: state.itemSabor.isEmpty ? nil : state.itemSabor
@@ -153,8 +140,8 @@ struct NewOrderView: View {
         do {
             let objectKeys = try await uploadReferenceImages()
             let finalInput = OrderInput(
-                clientid: state.selectedClientId,
-                deliverydate: Formatters.iso8601.string(from: state.deliveryDate),
+                clientId: state.selectedClientId,
+                deliveryDate: Formatters.iso8601.string(from: state.deliveryDate),
                 deliveryAddress: state.deliveryAddress.isEmpty ? nil : state.deliveryAddress,
                 items: state.items,
                 references: objectKeys.isEmpty ? nil : objectKeys
@@ -189,7 +176,7 @@ struct OrderItemRow: View {
     let productSize: String?
 
     var itemTotal: Double {
-        let totalCents = item.unitprice * item.quantity
+        let totalCents = item.unitPrice * item.quantity
         return Double(totalCents) / 100.0
     }
 
@@ -203,7 +190,7 @@ struct OrderItemRow: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    Text("\(item.quantity)x \(Formatters.currency.string(from: NSNumber(value: Double(item.unitprice) / 100.0)) ?? "R$ 0,00")")
+                    Text("\(item.quantity)x \(Formatters.currency.string(from: NSNumber(value: Double(item.unitPrice) / 100.0)) ?? "R$ 0,00")")
                         .font(.caption).foregroundColor(.secondary)
                 }
                 Spacer()

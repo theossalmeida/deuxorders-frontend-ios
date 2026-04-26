@@ -81,13 +81,13 @@ class ClientsViewModel: ObservableObject {
     func deactivateClient(id: String) async {
         guard let index = clients.firstIndex(where: { $0.id == id }) else { return }
 
-        let originalState = clients[index].isActive
-        clients[index].isActive = false
+        let originalState = clients[index].status
+        clients[index].status = false
 
         do {
             try await clientService.deactivateClient(id: id)
         } catch {
-            clients[index].isActive = originalState
+            clients[index].status = originalState
             self.errorMessage = "Falha ao comunicar desativação ao servidor."
         }
     }
@@ -95,13 +95,13 @@ class ClientsViewModel: ObservableObject {
     func activateClient(id: String) async {
         guard let index = clients.firstIndex(where: { $0.id == id }) else { return }
 
-        let originalState = clients[index].isActive
-        clients[index].isActive = true
+        let originalState = clients[index].status
+        clients[index].status = true
 
         do {
             try await clientService.activateClient(id: id)
         } catch {
-            clients[index].isActive = originalState
+            clients[index].status = originalState
             self.errorMessage = "Falha ao comunicar ativação ao servidor."
         }
     }

@@ -1,20 +1,20 @@
-//
-//  Client.swift
-//  DeuxOrders
-//
-//  Created by Theo on 05/03/26.
-//
-
 import Foundation
 
 struct Client: Codable, Identifiable {
     let id: String
     let name: String
     let mobile: String?
-    var isActive: Bool
+    var status: Bool
 
     enum CodingKeys: String, CodingKey {
-        case id, name, mobile, isActive
+        case id, name, mobile, status, isActive
+    }
+
+    init(id: String, name: String, mobile: String?, status: Bool) {
+        self.id = id
+        self.name = name
+        self.mobile = mobile
+        self.status = status
     }
 
     init(from decoder: Decoder) throws {
@@ -22,7 +22,20 @@ struct Client: Codable, Identifiable {
         self.id = try container.decode(String.self, forKey: .id)
         self.name = try container.decode(String.self, forKey: .name)
         self.mobile = try container.decodeIfPresent(String.self, forKey: .mobile)
-        self.isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive) ?? true
+        // Backend may send "status" or legacy "isActive"
+        if let s = try container.decodeIfPresent(Bool.self, forKey: .status) {
+            self.status = s
+        } else {
+            self.status = try container.decodeIfPresent(Bool.self, forKey: .isActive) ?? true
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encodeIfPresent(mobile, forKey: .mobile)
+        try container.encode(status, forKey: .status)
     }
 }
 
@@ -30,16 +43,24 @@ struct Client: Codable, Identifiable {
 
 struct ClientStats: Decodable {
     let totalOrders: Int
-    let totalSpentCents: Int
+    let totalSpent: Int
     let lastOrderDate: String?
+
+    enum CodingKeys: String, CodingKey {
+        case totalOrders, totalSpent, lastOrderDate
+    }
 }
 
 struct ClientOrder: Decodable, Identifiable {
     let id: String
     let deliveryDate: Date
     let status: OrderStatus
-    let totalPaidCents: Int
-    let totalValueCents: Int
+    let totalPaid: Int
+    let totalValue: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id, deliveryDate, status, totalPaid, totalValue
+    }
 }
 
 struct ClientDetail: Decodable {
@@ -48,5 +69,9 @@ struct ClientDetail: Decodable {
     let mobile: String?
     let status: Bool
     let stats: ClientStats
-    let orders: [ClientOrder]
+    let orders: ClientOrdersWrapper
+
+    struct ClientOrdersWrapper: Decodable {
+        let items: [ClientOrder]
+    }
 }

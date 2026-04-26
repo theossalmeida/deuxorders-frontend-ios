@@ -14,7 +14,6 @@ struct OrderDetailView: View {
     @State private var unpayReason = ""
     @State private var showCancelAlert = false
 
-    private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 
     var body: some View {
         ScrollView {
@@ -53,7 +52,7 @@ struct OrderDetailView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 NavigationLink(destination: EditOrderView(viewModel: viewModel, order: order)) {
                     Text("Editar")
-                        .foregroundColor(brandColor)
+                        .foregroundColor(DSColor.brand)
                 }
             }
         }
@@ -253,8 +252,8 @@ struct OrderDetailView: View {
             .font(.system(size: 10))
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(brandColor.opacity(0.1))
-            .foregroundColor(brandColor)
+            .background(DSColor.brand.opacity(0.1))
+            .foregroundColor(DSColor.brand)
             .cornerRadius(4)
     }
 
@@ -436,7 +435,7 @@ struct OrderDetailView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.white)
                         .frame(width: 36, height: 36)
-                        .background(brandColor)
+                        .background(DSColor.brand)
                         .clipShape(Circle())
 
                     Text(order.clientName)
@@ -489,7 +488,7 @@ struct OrderDetailView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .foregroundColor(.white)
-                    .background(brandColor)
+                    .background(DSColor.brand)
                     .cornerRadius(12)
                 }
             }

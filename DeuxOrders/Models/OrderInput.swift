@@ -1,15 +1,8 @@
-//
-//  OrderInput.swift
-//  DeuxOrders
-//
-//  Created by Theo on 05/03/26.
-//
-
 import Foundation
 
 struct OrderInput: Codable {
-    let clientid: String
-    let deliverydate: String
+    let clientId: String
+    let deliveryDate: String
     let deliveryAddress: String?
     let items: [OrderItemInput]
     let references: [String]?
@@ -17,17 +10,17 @@ struct OrderInput: Codable {
 
 struct OrderItemInput: Codable, Identifiable {
     var id = UUID()
-    let productid: String
+    let productId: String
     let quantity: Int
-    let unitprice: Int
+    let unitPrice: Int
     let observation: String?
     let massa: String?
     let sabor: String?
 
     enum CodingKeys: String, CodingKey {
-        case productid
+        case productId
         case quantity
-        case unitprice
+        case unitPrice
         case observation
         case massa
         case sabor
@@ -35,9 +28,9 @@ struct OrderItemInput: Codable, Identifiable {
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(productid, forKey: .productid)
+        try container.encode(productId, forKey: .productId)
         try container.encode(quantity, forKey: .quantity)
-        try container.encode(unitprice, forKey: .unitprice)
+        try container.encode(unitPrice, forKey: .unitPrice)
 
         if let obs = observation {
             let cleanObs = obs.trimmingCharacters(in: .whitespacesAndNewlines)

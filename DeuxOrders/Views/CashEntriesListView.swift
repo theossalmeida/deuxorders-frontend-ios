@@ -11,7 +11,6 @@ struct CashEntriesListView: View {
     @State private var deleteReason = ""
     @State private var entryToDelete: CashFlowEntry?
 
-    private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 
     var body: some View {
         VStack(spacing: 0) {
@@ -93,7 +92,7 @@ struct CashEntriesListView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 NavigationLink(destination: CashEntryFormView(viewModel: viewModel)) {
                     Image(systemName: "plus")
-                        .foregroundColor(brandColor)
+                        .foregroundColor(DSColor.brand)
                 }
             }
         }

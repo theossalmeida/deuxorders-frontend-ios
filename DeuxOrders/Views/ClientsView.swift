@@ -15,12 +15,11 @@ struct ClientsView: View {
     @State private var showAddClientSheet = false
     @State private var selectedClient: Client?
 
-    private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 
     var filteredClients: [Client] {
         viewModel.clients.filter { client in
             let searchMatch = searchText.isEmpty || client.name.localizedCaseInsensitiveContains(searchText)
-            let statusMatch = client.isActive == showActiveOnly
+            let statusMatch = client.status == showActiveOnly
             return searchMatch && statusMatch
         }
     }
@@ -81,7 +80,7 @@ struct ClientsView: View {
                             }
                         }
                         .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                            if client.isActive {
+                            if client.status {
                                 Button {
                                     Task { await viewModel.deactivateClient(id: client.id) }
                                 } label: {
@@ -129,7 +128,7 @@ private extension ClientsView {
             } label: {
                 Image(systemName: "line.3.horizontal.decrease.circle")
                     .font(.title2)
-                    .foregroundColor(brandColor)
+                    .foregroundColor(DSColor.brand)
             }
 
             Button {
@@ -137,7 +136,7 @@ private extension ClientsView {
             } label: {
                 Image(systemName: "plus.circle.fill")
                     .font(.title2)
-                    .foregroundColor(brandColor)
+                    .foregroundColor(DSColor.brand)
             }
         }
         .padding()
@@ -287,7 +286,7 @@ struct ClientCard: View {
 
                 Spacer()
 
-                if !client.isActive {
+                if !client.status {
                     Text("Inativo")
                         .font(.caption2)
                         .fontWeight(.bold)

@@ -18,7 +18,6 @@ struct ProductDetailView: View {
     @State private var editSize: String = ""
     @State private var showDeleteAlert = false
 
-    private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 
     var body: some View {
         ScrollView {
@@ -54,7 +53,7 @@ struct ProductDetailView: View {
                         startEditing()
                     }
                 }
-                .foregroundColor(brandColor)
+                .foregroundColor(DSColor.brand)
             }
         }
         .alert("Excluir produto?", isPresented: $showDeleteAlert) {
@@ -209,7 +208,7 @@ struct ProductDetailView: View {
                 Text(formatPrice(product.price))
                     .font(.title2)
                     .fontWeight(.bold)
-                    .foregroundColor(brandColor)
+                    .foregroundColor(DSColor.brand)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -245,7 +244,7 @@ struct ProductDetailView: View {
                     }
                 }
             ))
-            .tint(brandColor)
+            .tint(DSColor.brand)
         }
         .padding()
         .background(Color(uiColor: .secondarySystemBackground))

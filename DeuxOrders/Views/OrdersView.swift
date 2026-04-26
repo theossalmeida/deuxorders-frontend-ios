@@ -19,7 +19,6 @@ struct OrdersView: View {
     @State private var showingNewOrderSheet = false
     @StateObject private var newOrderState = NewOrderState()
     
-    private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 
     var filteredOrders: [Order] {
         let calendar = Calendar.current
@@ -138,7 +137,7 @@ private extension OrdersView {
             } label: {
                 Image(systemName: "line.3.horizontal.decrease.circle")
                     .font(.title2)
-                    .foregroundColor(selectedStatus == nil ? brandColor : .blue)
+                    .foregroundColor(selectedStatus == nil ? DSColor.brand : .blue)
             }
             
             Button {
@@ -146,7 +145,7 @@ private extension OrdersView {
             } label: {
                 Image(systemName: "calendar")
                     .font(.title2)
-                    .foregroundColor(showDatePicker ? .blue : brandColor)
+                    .foregroundColor(showDatePicker ? .blue : DSColor.brand)
             }
             
             Button {
@@ -154,7 +153,7 @@ private extension OrdersView {
             } label: {
                 Image(systemName: "plus.circle.fill")
                     .font(.title2)
-                    .foregroundColor(brandColor)
+                    .foregroundColor(DSColor.brand)
             }
         }
         .padding()

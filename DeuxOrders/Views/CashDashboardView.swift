@@ -9,7 +9,6 @@ import Charts
 struct CashDashboardView: View {
     @ObservedObject var viewModel: CashFlowViewModel
 
-    private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 
     var body: some View {
         ScrollView {
@@ -43,7 +42,7 @@ struct CashDashboardView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 NavigationLink(destination: CashEntryFormView(viewModel: viewModel)) {
                     Image(systemName: "plus")
-                        .foregroundColor(brandColor)
+                        .foregroundColor(DSColor.brand)
                 }
             }
         }
@@ -72,7 +71,7 @@ private extension CashDashboardView {
                     DatePicker("Até", selection: $viewModel.endDate, in: viewModel.startDate..., displayedComponents: .date)
                     Button("Aplicar") { Task { await viewModel.loadDashboard() } }
                         .buttonStyle(.borderedProminent)
-                        .tint(brandColor)
+                        .tint(DSColor.brand)
                 }
                 .padding()
                 .background(Color(uiColor: .secondarySystemBackground))
@@ -111,7 +110,7 @@ private extension CashDashboardView {
         .padding(20)
         .background(
             LinearGradient(
-                gradient: Gradient(colors: [brandColor, brandColor.opacity(0.8)]),
+                gradient: Gradient(colors: [DSColor.brand, DSColor.brand.opacity(0.8)]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -292,7 +291,7 @@ private extension CashDashboardView {
                     Text("Ver tudo →")
                         .font(.caption)
                         .fontWeight(.semibold)
-                        .foregroundColor(brandColor)
+                        .foregroundColor(DSColor.brand)
                 }
             }
 

@@ -1,7 +1,6 @@
 import SwiftUI
 import PhotosUI
 
-private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 private let maxObservationLength = 500
 
 struct OrderBasicInfoSection: View {
@@ -150,7 +149,7 @@ struct AddItemFormSection: View {
                     Button(action: onAdd) {
                         Image(systemName: "plus.circle.fill")
                             .font(.title)
-                            .foregroundColor(brandColor)
+                            .foregroundColor(DSColor.brand)
                     }
                     .buttonStyle(.borderless)
                     .disabled(!canAddItem)
@@ -170,7 +169,7 @@ struct AddItemFormSection: View {
             }
 
             ForEach(items) { item in
-                OrderItemRow(item: item, productName: productName(for: item.productid), productSize: productSize(for: item.productid))
+                OrderItemRow(item: item, productName: productName(for: item.productId), productSize: productSize(for: item.productId))
             }
             .onDelete(perform: onDelete)
         }
@@ -284,7 +283,7 @@ struct ReferenceImagesSection: View {
                                     onDeleteExisting?(url)
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(.white, brandColor)
+                                        .foregroundStyle(.white, DSColor.brand)
                                 }
                                 .padding(4)
                             }
@@ -303,7 +302,7 @@ struct ReferenceImagesSection: View {
                                 selectedImages.remove(at: index)
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(.white, brandColor)
+                                    .foregroundStyle(.white, DSColor.brand)
                             }
                             .padding(4)
                         }
@@ -354,7 +353,7 @@ struct OrderTotalSection: View {
                 Spacer()
                 Text(Formatters.currency.string(from: NSNumber(value: totalOrderValue)) ?? "R$ 0,00")
                     .font(.headline)
-                    .foregroundColor(brandColor)
+                    .foregroundColor(DSColor.brand)
             }
         }
     }

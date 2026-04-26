@@ -1,122 +1,35 @@
-//
-//  ClientService.swift
-//  DeuxOrders
-//
-//  Created by Theo on 11/03/26.
-//
-
 import Foundation
 
 class ClientService {
-    private let baseURL = "https://deux-erp.deuxcerie.com.br/api/v1/"
-    
-    private static let isoFormatter: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
-
-    private static let fallbackFormatter: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime]
-        return f
-    }()
-
-    private let dateDecoder: JSONDecoder = {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .custom { decoder in
-            let container = try decoder.singleValueContainer()
-            let dateString = try container.decode(String.self)
-            if let date = isoFormatter.date(from: dateString) { return date }
-            if let date = fallbackFormatter.date(from: dateString) { return date }
-            return Date()
-        }
-        return decoder
-    }()
-
-    private var token: String? {
-        KeychainService.load(forKey: "user_token")
-    }
+    private let api = APIClient.shared
 
     func fetchClients() async throws -> [Client] {
-        let request = try makeRequest(endpoint: "clients/all?size=100 ", method: "GET")
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try validate(response: response)
-
         struct ClientsResponse: Decodable { let items: [Client] }
-        return try JSONDecoder().decode(ClientsResponse.self, from: data).items
+        let response: ClientsResponse = try await api.get("clients/all?size=100")
+        return response.items
     }
-    
-    func createClient(input: ClientInput) async throws {
-        var request = try makeRequest(endpoint: "clients/new", method: "POST")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONEncoder().encode(input)
-        
-        let (_, response) = try await URLSession.shared.data(for: request)
-        try validate(response: response)
-    }
-    
-    func deleteClient(id: String) async throws {
-        let request = try makeRequest(endpoint: "clients/\(id)", method: "DELETE")
-        let (_, response) = try await URLSession.shared.data(for: request)
-        try validate(response: response)
-    }
-    
-    func deactivateClient(id: String) async throws {
-        var request = try makeRequest(endpoint: "clients/\(id)/inactive", method: "PATCH")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let (_, response) = try await URLSession.shared.data(for: request)
-        try validate(response: response)
+    func createClient(input: ClientInput) async throws {
+        try await api.post("clients/new", body: input)
+    }
+
+    func deleteClient(id: String) async throws {
+        try await api.delete("clients/\(id)")
+    }
+
+    func deactivateClient(id: String) async throws {
+        try await api.patch("clients/\(id)/inactive")
     }
 
     func updateClient(id: String, input: ClientInput) async throws {
-        var request = try makeRequest(endpoint: "clients/\(id)", method: "PUT")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONEncoder().encode(input)
-        let (_, response) = try await URLSession.shared.data(for: request)
-        try validate(response: response)
+        try await api.put("clients/\(id)", body: input)
     }
 
     func fetchClientDetail(id: String) async throws -> ClientDetail {
-        let request = try makeRequest(endpoint: "clients/\(id)?orders=true", method: "GET")
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try validate(response: response)
-        return try dateDecoder.decode(ClientDetail.self, from: data)
+        try await api.get("clients/\(id)?orders=true")
     }
 
     func activateClient(id: String) async throws {
-        var request = try makeRequest(endpoint: "clients/\(id)/active", method: "PATCH")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let (_, response) = try await URLSession.shared.data(for: request)
-        try validate(response: response)
-    }
-    
-    // MARK: - Private Helpers
-    
-    private func makeRequest(endpoint: String, method: String) throws -> URLRequest {
-        guard let url = URL(string: baseURL + endpoint) else { throw NetworkError.invalidURL }
-        guard let token = token else { throw NetworkError.unauthorized }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        return request
-    }
-    
-    private func validate(response: URLResponse) throws {
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NetworkError.serverError("Resposta inválida do servidor")
-        }
-        if httpResponse.statusCode == 401 {
-            KeychainService.delete(forKey: "user_token")
-            NotificationCenter.default.post(name: .sessionExpired, object: nil)
-            throw NetworkError.unauthorized
-        }
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw NetworkError.serverError("Falha na API com status: \(httpResponse.statusCode)")
-        }
+        try await api.patch("clients/\(id)/active")
     }
 }

@@ -18,7 +18,6 @@ struct ProductsView: View {
     @State private var showAddProductSheet = false
     @State private var selectedProduct: ProductResponse?
 
-    private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 
     var availableCategories: [String] {
         let cats = viewModel.products.compactMap { $0.category }.filter { !$0.isEmpty }
@@ -147,7 +146,7 @@ private extension ProductsView {
             } label: {
                 Image(systemName: selectedCategory != nil ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
                     .font(.title2)
-                    .foregroundColor(brandColor)
+                    .foregroundColor(DSColor.brand)
             }
 
             Button {
@@ -155,7 +154,7 @@ private extension ProductsView {
             } label: {
                 Image(systemName: "plus.circle.fill")
                     .font(.title2)
-                    .foregroundColor(brandColor)
+                    .foregroundColor(DSColor.brand)
             }
         }
         .padding()
@@ -297,7 +296,6 @@ struct EditProductView: View {
     @State private var existingImageURL: String?
     @State private var isSubmitting = false
 
-    private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
 
     init(product: ProductResponse, viewModel: ProductsViewModel) {
         self.product = product
@@ -359,7 +357,7 @@ struct EditProductView: View {
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.title2)
-                                    .foregroundStyle(.white, brandColor)
+                                    .foregroundStyle(.white, DSColor.brand)
                             }
                             .padding(6)
                         }
@@ -380,7 +378,7 @@ struct EditProductView: View {
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.title2)
-                                    .foregroundStyle(.white, brandColor)
+                                    .foregroundStyle(.white, DSColor.brand)
                             }
                             .padding(6)
                         }
@@ -503,8 +501,8 @@ struct ProductCard: View {
                             .fontWeight(.medium)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
-                            .background(Color(red: 88/255, green: 22/255, blue: 41/255).opacity(0.1))
-                            .foregroundColor(Color(red: 88/255, green: 22/255, blue: 41/255))
+                            .background(DSColor.brand.opacity(0.1))
+                            .foregroundColor(DSColor.brand)
                             .cornerRadius(6)
                     }
                     if let size = product.size, !size.isEmpty {

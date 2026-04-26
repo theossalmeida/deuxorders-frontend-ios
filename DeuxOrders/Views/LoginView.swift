@@ -3,13 +3,12 @@ import SwiftUI
 struct LoginView: View {
     @StateObject private var viewModel = LoginViewModel()
     
-    private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
     
     var body: some View {
         NavigationStack {
             GeometryReader { geometry in
                 ZStack {
-                    brandColor
+                    DSColor.brand
                         .ignoresSafeArea()
                     
                     VStack(spacing: 0) {
@@ -111,11 +110,11 @@ private extension LoginView {
         Button(action: handleLogin) {
             Group {
                 if viewModel.isLoading {
-                    ProgressView().tint(brandColor)
+                    ProgressView().tint(DSColor.brand)
                 } else {
                     Text("Entrar")
                         .fontWeight(.bold)
-                        .foregroundColor(brandColor)
+                        .foregroundColor(DSColor.brand)
                 }
             }
             .frame(width: screenWidth * 0.40)

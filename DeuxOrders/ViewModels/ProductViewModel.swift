@@ -40,7 +40,7 @@ class ProductsViewModel: ObservableObject {
         let finalSize = size?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().nilIfEmpty
 
         do {
-            try await productService.createProduct(name: cleanedName, descricao: finalDesc, price: price, category: finalCategory, size: finalSize, imageData: imageData, imageContentType: imageContentType)
+            try await productService.createProduct(name: cleanedName, description: finalDesc, price: price, category: finalCategory, size: finalSize, imageData: imageData, imageContentType: imageContentType)
             await loadProducts()
             return true
         } catch {
@@ -57,7 +57,7 @@ class ProductsViewModel: ObservableObject {
         let finalSize = size?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().nilIfEmpty
 
         do {
-            try await productService.updateProduct(id: id, name: cleanedName, descricao: finalDesc, price: price, category: finalCategory, size: finalSize, imageData: imageData, imageContentType: imageContentType)
+            try await productService.updateProduct(id: id, name: cleanedName, description: finalDesc, price: price, category: finalCategory, size: finalSize, imageData: imageData, imageContentType: imageContentType)
             await loadProducts()
             return true
         } catch {

@@ -13,7 +13,6 @@ struct CashEntryDetailView: View {
     @State private var showDeleteAlert = false
     @State private var deleteReason = ""
 
-    private let brandColor = Color(red: 88/255, green: 22/255, blue: 41/255)
     private var isInflow: Bool { entry.type == .inflow }
 
     var body: some View {
@@ -40,7 +39,7 @@ struct CashEntryDetailView: View {
                 if entry.source == .manual {
                     NavigationLink(destination: CashEntryFormView(viewModel: viewModel, editingEntry: entry)) {
                         Text("Editar")
-                            .foregroundColor(brandColor)
+                            .foregroundColor(DSColor.brand)
                     }
                 }
             }

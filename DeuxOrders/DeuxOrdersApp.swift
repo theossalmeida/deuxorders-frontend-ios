@@ -6,9 +6,6 @@ struct DeuxOrdersApp: App {
         WindowGroup {
             LoginView()
                 .preferredColorScheme(.light)
-                .task {
-                    await NotificationService.shared.requestAuthorization()
-                }
         }
     }
 }
