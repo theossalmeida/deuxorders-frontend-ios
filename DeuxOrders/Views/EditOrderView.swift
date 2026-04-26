@@ -53,7 +53,8 @@ struct EditOrderView: View {
         self.order = order
         _selectedClientId = State(initialValue: order.clientId)
         _deliveryDate = State(initialValue: order.deliveryDate)
-        _deliveryAddress = State(initialValue: order.deliveryAddress ?? "Retirada")
+        let addr = order.deliveryAddress ?? ""
+        _deliveryAddress = State(initialValue: (addr.isEmpty || addr == "pickup") ? "Retirada" : addr)
         _selectedStatus = State(initialValue: order.status)
 
         var initial: [String: EditedItem] = [:]
@@ -336,8 +337,10 @@ extension EditOrderView {
         let statusChanged = selectedStatus != order.status
         let statusPayload: Int? = statusChanged ? selectedStatus.intValue : nil
 
-        let addressChanged = deliveryAddress != (order.deliveryAddress ?? "Retirada")
-        let addressPayload: String? = addressChanged ? (deliveryAddress.isEmpty ? nil : deliveryAddress) : nil
+        let normalizedAddress = deliveryAddress == "Retirada" ? "pickup" : deliveryAddress
+        let originalAddress = (order.deliveryAddress ?? "pickup")
+        let addressChanged = normalizedAddress != originalAddress
+        let addressPayload: String? = addressChanged ? (normalizedAddress.isEmpty ? nil : normalizedAddress) : nil
 
         var itemsPayload: [UpdateOrderItemRequest] = order.items.compactMap { item in
             guard let edited = editedItems[item.productId] else { return nil }

@@ -23,7 +23,7 @@ enum OrderStatus: String, Codable, CaseIterable {
         case .pending: return "Pendente"
         case .preparing: return "Preparando"
         case .waitingPickupOrDelivery: return "Aguardando Retirada/Entrega"
-        case .completed: return "Entregue"
+        case .completed: return "Concluído"
         case .canceled: return "Cancelado"
         }
     }
@@ -31,11 +31,11 @@ enum OrderStatus: String, Codable, CaseIterable {
     var color: Color {
         switch self {
         case .received: return .blue
-        case .pending: return .orange
-        case .preparing: return .yellow
+        case .pending: return Color(red: 184/255, green: 121/255, blue: 31/255)
+        case .preparing: return .orange
         case .waitingPickupOrDelivery: return .purple
-        case .completed: return .green
-        case .canceled: return .red
+        case .completed: return DSColor.ok
+        case .canceled: return DSColor.destructive
         }
     }
 

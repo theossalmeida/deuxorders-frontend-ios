@@ -3,6 +3,43 @@ import PhotosUI
 
 private let maxObservationLength = 500
 
+// MARK: - Recipe Option Category Detection
+
+enum RecipeOptionCategory {
+    case cake
+    case brigadeiro
+    case cookie
+    case none
+
+    init(product: ProductResponse) {
+        let name = product.name.lowercased()
+        let cat = product.category?.lowercased() ?? ""
+
+        if cat.contains("bolo") || cat.contains("bolos") || name.contains("bolo") || name.contains("cake") || name.contains("naked") {
+            self = .cake
+        } else if cat.contains("brigadeiro") || name.contains("brigadeiro") {
+            self = .brigadeiro
+        } else if cat.contains("cookie") || name.contains("cookie") {
+            self = .cookie
+        } else {
+            self = .none
+        }
+    }
+
+    var requiresMassa: Bool { self == .cake }
+    var requiresSabor: Bool { self != .none }
+    var saborLabel: String {
+        switch self {
+        case .cake: return "Recheio"
+        case .brigadeiro, .cookie: return "Sabor"
+        case .none: return ""
+        }
+    }
+    var allowsMultipleSabor: Bool { self == .cake }
+}
+
+// MARK: - Basic Info Section
+
 struct OrderBasicInfoSection: View {
     let allClients: [Client]
     @Binding var selectedClientId: String
@@ -10,7 +47,7 @@ struct OrderBasicInfoSection: View {
     @Binding var deliveryAddress: String
 
     private var isPickup: Bool {
-        deliveryAddress == "Retirada"
+        deliveryAddress == "Retirada" || deliveryAddress == "pickup"
     }
 
     private var modeBinding: Binding<Bool> {
@@ -23,7 +60,7 @@ struct OrderBasicInfoSection: View {
     }
 
     var body: some View {
-        Section("Informações Básicas") {
+        Section("Cliente e Entrega") {
             Picker("Cliente", selection: $selectedClientId) {
                 Text("Selecione um cliente").tag(String(""))
                 ForEach(allClients) { client in
@@ -42,6 +79,8 @@ struct OrderBasicInfoSection: View {
         }
     }
 }
+
+// MARK: - Add Item Section
 
 struct AddItemFormSection: View {
     let allProducts: [ProductResponse]
@@ -76,22 +115,26 @@ struct AddItemFormSection: View {
             .filter { seen.insert($0).inserted }
     }
 
-    private var requiresMassaSabor: Bool {
-        guard !selectedProductId.isEmpty,
-              let product = allProducts.first(where: { $0.id == selectedProductId }) else { return false }
-        let cat = product.category?.lowercased() ?? ""
-        return cat == "bolo" || cat == "doce"
+    private var selectedProduct: ProductResponse? {
+        guard !selectedProductId.isEmpty else { return nil }
+        return allProducts.first(where: { $0.id == selectedProductId })
+    }
+
+    private var recipeCategory: RecipeOptionCategory {
+        guard let product = selectedProduct else { return .none }
+        return RecipeOptionCategory(product: product)
     }
 
     private var canAddItem: Bool {
         !selectedProductId.isEmpty &&
         (Int(quantity) ?? 0) > 0 &&
-        (Double(itemUnitPrice.replacingOccurrences(of: ",", with: ".")) ?? 0) > 0
+        (Double(itemUnitPrice.replacingOccurrences(of: ",", with: ".")) ?? -1) >= 0
     }
 
     var body: some View {
         Section(sectionTitle) {
             VStack(spacing: 12) {
+                // Product name picker
                 Picker("Produto", selection: $selectedProductName) {
                     Text("Selecione o produto").tag(String(""))
                     ForEach(uniqueProductNames, id: \.self) { Text($0).tag($0) }
@@ -102,10 +145,13 @@ struct AddItemFormSection: View {
                     resolveProductId(name: name, size: "")
                 }
 
+                // Size picker (if variants exist)
                 if !sizesForSelectedName.isEmpty {
                     Picker("Tamanho", selection: $selectedSize) {
                         Text("Selecione o tamanho").tag(String(""))
-                        ForEach(sizesForSelectedName, id: \.self) { Text($0).tag($0) }
+                        ForEach(sizesForSelectedName, id: \.self) { size in
+                            Text(size.isEmpty ? "Padrão" : size).tag(size)
+                        }
                     }
                     .pickerStyle(.menu)
                     .onChange(of: selectedSize) { _, size in
@@ -113,6 +159,26 @@ struct AddItemFormSection: View {
                     }
                 }
 
+                // Price display for selected variant
+                if let product = selectedProduct {
+                    HStack {
+                        Text(product.name)
+                            .font(.caption)
+                            .foregroundColor(DSColor.foregroundSoft)
+                        if let size = product.size, !size.isEmpty {
+                            Text("(\(size))")
+                                .font(.caption)
+                                .foregroundColor(DSColor.foregroundSoft)
+                        }
+                        Spacer()
+                        Text(Formatters.brl(Int(product.price)))
+                            .font(DSFont.monoCaption)
+                            .foregroundColor(DSColor.brand)
+                    }
+                    .padding(.vertical, 2)
+                }
+
+                // Quantity + Unit Price
                 HStack {
                     TextField("Qtd", text: $quantity)
                         .keyboardType(.numberPad)
@@ -121,21 +187,31 @@ struct AddItemFormSection: View {
                         .frame(maxWidth: 70)
                         .onChange(of: quantity) { _, _ in autoFillUnitPrice(for: selectedProductId) }
 
-                    TextField("Preço unit. (R$)", text: $itemUnitPrice)
+                    TextField("Valor un. (R$)", text: $itemUnitPrice)
                         .keyboardType(.decimalPad)
                         .textFieldStyle(.roundedBorder)
                         .focused($isInputActive)
                 }
 
-                if requiresMassaSabor {
+                // Recipe option pickers (conditional)
+                if recipeCategory.requiresMassa {
                     TextField("Massa", text: $itemMassa)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($isInputActive)
-                    TextField("Sabor", text: $itemSabor)
                         .textFieldStyle(.roundedBorder)
                         .focused($isInputActive)
                 }
 
+                if recipeCategory.requiresSabor {
+                    TextField(recipeCategory.saborLabel, text: $itemSabor)
+                        .textFieldStyle(.roundedBorder)
+                        .focused($isInputActive)
+                    if recipeCategory.allowsMultipleSabor {
+                        Text("Separe recheios com | (ex: brulee|chocolate)")
+                            .font(.caption2)
+                            .foregroundColor(DSColor.foregroundSoft)
+                    }
+                }
+
+                // Observation + Add button
                 HStack {
                     TextField("Observação (opcional)", text: $itemObservation)
                         .textFieldStyle(.roundedBorder)
@@ -207,6 +283,8 @@ struct AddItemFormSection: View {
     }
 }
 
+// MARK: - Fullscreen Image Viewer
+
 private enum FullscreenImageSource: Identifiable {
     case url(String)
     case local(Int, UIImage)
@@ -249,6 +327,8 @@ private struct FullscreenImageViewer: View {
         }
     }
 }
+
+// MARK: - Reference Images Section
 
 struct ReferenceImagesSection: View {
     @Binding var selectedImages: [UIImage]
@@ -311,12 +391,12 @@ struct ReferenceImagesSection: View {
                     if remainingSlots > 0 {
                         PhotosPicker(selection: $pickerItems, maxSelectionCount: remainingSlots, matching: .images) {
                             RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.secondary.opacity(0.15))
+                                .fill(DSColor.background2)
                                 .frame(width: 80, height: 80)
                                 .overlay {
                                     Image(systemName: "plus")
                                         .font(.title2)
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(DSColor.foregroundSoft)
                                 }
                         }
                     }
@@ -343,6 +423,8 @@ struct ReferenceImagesSection: View {
     }
 }
 
+// MARK: - Order Total Section
+
 struct OrderTotalSection: View {
     let totalOrderValue: Double
 
@@ -350,9 +432,10 @@ struct OrderTotalSection: View {
         Section {
             HStack {
                 Text("Total do Pedido")
+                    .font(DSFont.cardTitle)
                 Spacer()
                 Text(Formatters.currency.string(from: NSNumber(value: totalOrderValue)) ?? "R$ 0,00")
-                    .font(.headline)
+                    .font(DSFont.primaryAmount)
                     .foregroundColor(DSColor.brand)
             }
         }

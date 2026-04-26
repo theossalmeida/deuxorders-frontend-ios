@@ -300,7 +300,8 @@ struct OrderDetailView: View {
                 .tracking(1)
                 .foregroundColor(.secondary)
 
-            let isDelivery = order.deliveryAddress != nil && !order.deliveryAddress!.isEmpty
+            let addr = order.deliveryAddress ?? ""
+            let isDelivery = !addr.isEmpty && addr != "Retirada" && addr != "pickup"
 
             HStack(spacing: 8) {
                 Image(systemName: isDelivery ? "truck.box.fill" : "bag.fill")

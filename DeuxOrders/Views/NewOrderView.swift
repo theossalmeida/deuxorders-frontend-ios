@@ -11,7 +11,7 @@ import Combine
 @MainActor
 final class NewOrderState: ObservableObject {
     @Published var selectedClientId: String = ""
-    @Published var deliveryDate: Date = Date()
+    @Published var deliveryDate: Date = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
     @Published var deliveryAddress: String = "Retirada"
     @Published var items: [OrderItemInput] = []
     @Published var selectedProductId: String = ""
@@ -24,7 +24,7 @@ final class NewOrderState: ObservableObject {
 
     func reset() {
         selectedClientId = ""
-        deliveryDate = Date()
+        deliveryDate = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
         deliveryAddress = "Retirada"
         items = []
         selectedProductId = ""
@@ -142,7 +142,7 @@ struct NewOrderView: View {
             let finalInput = OrderInput(
                 clientId: state.selectedClientId,
                 deliveryDate: Formatters.iso8601.string(from: state.deliveryDate),
-                deliveryAddress: state.deliveryAddress.isEmpty ? nil : state.deliveryAddress,
+                deliveryAddress: state.deliveryAddress == "Retirada" ? "pickup" : (state.deliveryAddress.isEmpty ? nil : state.deliveryAddress),
                 items: state.items,
                 references: objectKeys.isEmpty ? nil : objectKeys
             )
