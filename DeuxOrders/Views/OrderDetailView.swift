@@ -62,7 +62,7 @@ struct OrderDetailView: View {
             Button("Cancelar", role: .cancel) { }
             Button("Reverter", role: .destructive) {
                 Task {
-                    await viewModel.reversePayment(order: order, reason: unpayReason.isEmpty ? "Estorno pelo app" : unpayReason)
+                    await viewModel.reversePayment(order: order, reason: normalizedUnpayReason)
                 }
             }
         } message: {
@@ -267,7 +267,7 @@ struct OrderDetailView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(refs, id: \.self) { ref in
-                        let url = ref.hasPrefix("http") ? URL(string: ref) : URL(string: "https://deux-erp.deuxcerie.com.br/\(ref)")
+                        let url = ref.hasPrefix("http") ? URL(string: ref) : URL(string: AppEnvironment.assetBaseURL + ref)
                         if let url = url {
                             AsyncImage(url: url) { phase in
                                 switch phase {
@@ -526,5 +526,10 @@ struct OrderDetailView: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+
+    private var normalizedUnpayReason: String {
+        let trimmed = unpayReason.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.count >= 5 ? trimmed : "Estorno pelo app"
     }
 }

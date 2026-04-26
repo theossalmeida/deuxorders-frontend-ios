@@ -195,11 +195,8 @@ struct CashEntryFormView: View {
         isSaving = true
         defer { isSaving = false }
 
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-
         let input = CreateCashFlowEntryInput(
-            billingDate: formatter.string(from: billingDate),
+            billingDate: Formatters.utcISOForStartOfLocalDay(billingDate),
             type: entryType.rawValue,
             category: category.rawValue,
             counterparty: counterparty.trimmingCharacters(in: .whitespaces),

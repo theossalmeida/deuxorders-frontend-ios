@@ -49,7 +49,7 @@ struct CashEntryDetailView: View {
             Button("Cancelar", role: .cancel) { }
             Button("Excluir", role: .destructive) {
                 Task {
-                    await viewModel.deleteEntry(id: entry.id, reason: deleteReason.isEmpty ? "Removido pelo app" : deleteReason)
+                    await viewModel.deleteEntry(id: entry.id, reason: normalizedDeleteReason)
                     dismiss()
                 }
             }
@@ -210,5 +210,10 @@ struct CashEntryDetailView: View {
         formatter.dateStyle = .long
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+
+    private var normalizedDeleteReason: String {
+        let trimmed = deleteReason.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.count >= 5 ? trimmed : "Removido pelo app"
     }
 }

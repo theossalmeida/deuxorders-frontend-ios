@@ -122,7 +122,7 @@ struct CashEntriesListView: View {
             Button("Cancelar", role: .cancel) { entryToDelete = nil }
             Button("Excluir", role: .destructive) {
                 if let entry = entryToDelete {
-                    Task { await viewModel.deleteEntry(id: entry.id, reason: deleteReason.isEmpty ? "Removido pelo app" : deleteReason) }
+                    Task { await viewModel.deleteEntry(id: entry.id, reason: normalizedDeleteReason) }
                 }
                 entryToDelete = nil
             }
@@ -183,5 +183,10 @@ struct CashEntriesListView: View {
         let sign = cents >= 0 ? "+" : "-"
         let amount = Formatters.brl(abs(cents))
         return "\(sign)\(amount)"
+    }
+
+    private var normalizedDeleteReason: String {
+        let trimmed = deleteReason.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.count >= 5 ? trimmed : "Removido pelo app"
     }
 }
