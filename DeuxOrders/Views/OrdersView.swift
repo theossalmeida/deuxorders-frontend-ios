@@ -68,6 +68,12 @@ struct OrdersView: View {
                         } label: {
                             Label("Clientes", systemImage: "person.2.fill")
                         }
+
+                        NavigationLink {
+                            NotificationSettingsView()
+                        } label: {
+                            Label("Notificações", systemImage: "bell.badge")
+                        }
                     } label: {
                         Image(systemName: "ellipsis.circle")
                             .foregroundColor(DSColor.brand)

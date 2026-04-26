@@ -5,13 +5,24 @@ class NotificationService {
     static let shared = NotificationService()
     private init() {}
 
-    func requestAuthorization() async {
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+    }
+
+    @discardableResult
+    func requestAuthorization() async -> Bool {
         do {
-            try await UNUserNotificationCenter.current()
+            return try await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .sound, .badge])
         } catch {
             print("❌ Erro ao pedir permissão de notificação: \(error)")
+            return false
         }
+    }
+
+    func cancelScheduledReminders() {
+        UNUserNotificationCenter.current()
+            .removePendingNotificationRequests(withIdentifiers: ["morning-daily", "afternoon-daily"])
     }
 
     func scheduleNotifications(orders: [Order]) async {
@@ -23,7 +34,7 @@ class NotificationService {
             return
         }
 
-        center.removePendingNotificationRequests(withIdentifiers: ["morning-daily", "afternoon-daily"])
+        cancelScheduledReminders()
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())

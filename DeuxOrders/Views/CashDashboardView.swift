@@ -39,7 +39,11 @@ struct CashDashboardView: View {
         }
         .navigationTitle("Caixa")
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                NavigationLink(destination: NotificationSettingsView()) {
+                    Image(systemName: "bell.badge")
+                        .foregroundColor(DSColor.brand)
+                }
                 NavigationLink(destination: CashEntryFormView(viewModel: viewModel)) {
                     Image(systemName: "plus")
                         .foregroundColor(DSColor.brand)
