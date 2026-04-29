@@ -24,7 +24,7 @@ enum AppSession {
                 return isAdminRole(role)
             }
             if let roles = value as? [String] {
-                return roles.contains(where: isAdminRole)
+                return roles.contains { isAdminRole($0) }
             }
             return false
         }

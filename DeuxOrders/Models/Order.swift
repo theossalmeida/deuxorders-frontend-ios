@@ -140,7 +140,7 @@ struct OrderItem: Decodable {
     let sabor: String?
 }
 
-struct UpdateOrderRequest: Codable {
+struct UpdateOrderRequest: Encodable {
     let deliveryDate: String?
     let status: Int?
     let deliveryAddress: String?

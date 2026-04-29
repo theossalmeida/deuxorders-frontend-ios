@@ -1,6 +1,6 @@
 import Foundation
 
-struct OrderInput: Codable {
+struct OrderInput: Encodable {
     let clientId: String
     let deliveryDate: String
     let deliveryAddress: String?

@@ -12,8 +12,13 @@ struct OrderDetailView: View {
 
     @State private var showUnpayAlert = false
     @State private var unpayReason = ""
-    @State private var showCancelAlert = false
+    @State private var activeAlert: OrderDetailAlert?
     private var isAdmin: Bool { AppSession.isAdministrator }
+
+    private enum OrderDetailAlert: Identifiable {
+        case cancel, delete
+        var id: Self { self }
+    }
 
 
     var body: some View {
@@ -61,20 +66,35 @@ struct OrderDetailView: View {
             TextField("Informe o motivo", text: $unpayReason)
             Button("Cancelar", role: .cancel) { }
             Button("Reverter", role: .destructive) {
-                Task {
-                    await viewModel.reversePayment(order: order, reason: normalizedUnpayReason)
-                }
+                Task { await viewModel.reversePayment(order: order, reason: normalizedUnpayReason) }
             }
         } message: {
             Text("Informe o motivo para reverter o pagamento.")
         }
-        .alert("Cancelar pedido?", isPresented: $showCancelAlert) {
-            Button("Não", role: .cancel) { }
-            Button("Sim, cancelar", role: .destructive) {
-                Task { await viewModel.updateOrderStatus(order: order, action: .cancel) }
+        .alert(item: $activeAlert) { alert in
+            switch alert {
+            case .cancel:
+                return Alert(
+                    title: Text("Cancelar pedido?"),
+                    message: Text("Esta ação não pode ser desfeita."),
+                    primaryButton: .destructive(Text("Sim, cancelar")) {
+                        Task { await viewModel.updateOrderStatus(order: order, action: .cancel) }
+                    },
+                    secondaryButton: .cancel(Text("Não"))
+                )
+            case .delete:
+                return Alert(
+                    title: Text("Excluir pedido?"),
+                    message: Text("O pedido será excluído permanentemente. Esta ação não pode ser desfeita."),
+                    primaryButton: .destructive(Text("Excluir")) {
+                        Task {
+                            try? await viewModel.deleteOrder(id: order.id)
+                            dismiss()
+                        }
+                    },
+                    secondaryButton: .cancel(Text("Cancelar"))
+                )
             }
-        } message: {
-            Text("Esta ação não pode ser desfeita.")
         }
     }
 
@@ -497,7 +517,7 @@ struct OrderDetailView: View {
 
             if order.status != .completed && order.status != .canceled {
                 Button {
-                    showCancelAlert = true
+                    activeAlert = .cancel
                 } label: {
                     HStack {
                         Image(systemName: "xmark.circle")
@@ -509,6 +529,23 @@ struct OrderDetailView: View {
                     .foregroundColor(.red)
                 }
                 .background(Color.red.opacity(0.1))
+                .cornerRadius(12)
+            }
+
+            if isAdmin {
+                Button {
+                    activeAlert = .delete
+                } label: {
+                    HStack {
+                        Image(systemName: "trash")
+                        Text("Excluir pedido")
+                    }
+                    .font(.subheadline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .foregroundColor(DSColor.destructive)
+                }
+                .background(DSColor.destructive.opacity(0.1))
                 .cornerRadius(12)
             }
         }

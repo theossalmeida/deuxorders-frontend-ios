@@ -13,11 +13,11 @@ class DashboardService {
     }
 
     func fetchTopProducts(start: Date, end: Date) async throws -> [TopProduct] {
-        try await api.get(buildEndpoint("dashboard/top-products", start: start, end: end, extra: ["limit": "5"]))
+        try await api.get(buildEndpoint("dashboard/top-products", start: start, end: end, extra: ["limit": "10"]))
     }
 
     func fetchTopClients(start: Date, end: Date) async throws -> [TopClient] {
-        try await api.get(buildEndpoint("dashboard/top-clients", start: start, end: end, extra: ["limit": "5"]))
+        try await api.get(buildEndpoint("dashboard/top-clients", start: start, end: end, extra: ["limit": "10"]))
     }
 
     func exportOrders(from: Date, to: Date, status: OrderStatus?, format: String) async throws -> (Data, String) {

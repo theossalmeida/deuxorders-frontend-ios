@@ -39,6 +39,7 @@ struct OrdersView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 topControlsBar
+                quickNavRow
 
                 if showDatePicker {
                     dateRangePickerView
@@ -192,6 +193,46 @@ struct OrdersView: View {
 // MARK: - Top Controls
 
 private extension OrdersView {
+    var quickNavRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                quickNavLink(title: "Painel", icon: "chart.bar.xaxis") {
+                    DashboardView(viewModel: DashboardViewModel())
+                }
+                quickNavLink(title: "Produtos", icon: "shippingbox.fill") {
+                    ProductsView()
+                }
+                quickNavLink(title: "Clientes", icon: "person.2.fill") {
+                    ClientsView()
+                }
+                quickNavLink(title: "Notificações", icon: "bell.badge") {
+                    NotificationSettingsView()
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+        }
+        .background(Color.white)
+        .overlay(Divider(), alignment: .bottom)
+    }
+
+    func quickNavLink<D: View>(title: String, icon: String, @ViewBuilder destination: () -> D) -> some View {
+        NavigationLink(destination: destination()) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.caption)
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+            }
+            .foregroundColor(DSColor.brand)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(DSColor.brandSoft)
+            .cornerRadius(20)
+        }
+    }
+
     var topControlsBar: some View {
         HStack(spacing: 12) {
             HStack(spacing: 8) {
